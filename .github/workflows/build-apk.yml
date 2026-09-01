@@ -1,4 +1,4 @@
-name: Build ShiBu Bypass Universal v3.6 Native Auto Final
+name: Build ShiBu Bypass Universal v3.6 Native Popup Final
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_NATIVE_AUTO_FINAL.zip"
+  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_NATIVE_POPUP_FINAL.zip"
 
 jobs:
   android:
@@ -169,9 +169,10 @@ jobs:
           import android.content.Intent
           import android.graphics.Bitmap
           import android.graphics.Color
+          import android.net.Uri
           import android.os.Build
           import android.os.Bundle
-          import android.net.Uri
+          import android.os.Message
           import android.view.Gravity
           import android.view.View
           import android.view.ViewGroup
@@ -182,6 +183,7 @@ jobs:
           import android.webkit.WebView
           import android.webkit.WebViewClient
           import android.widget.Button
+          import android.widget.FrameLayout
           import android.widget.LinearLayout
           import android.widget.ProgressBar
           import android.widget.TextView
@@ -194,6 +196,8 @@ jobs:
               }
 
               private lateinit var webView: WebView
+              private var popupWebView: WebView? = null
+              private lateinit var webContainer: FrameLayout
               private lateinit var progress: ProgressBar
               private lateinit var currentUrlText: TextView
               private var currentUrl: String? = null
@@ -228,11 +232,13 @@ jobs:
                   val closeButton = Button(this).apply {
                       text = "‹"
                       textSize = 24f
-                      setOnClickListener { finish() }
+                      setOnClickListener {
+                          if (popupWebView != null) closePopup() else finish()
+                      }
                   }
 
                   val title = TextView(this).apply {
-                      text = "ShiBu Native WebView · Auto"
+                      text = "ShiBu Native WebView · Popup"
                       textSize = 17f
                       setTextColor(Color.WHITE)
                       setPadding(dp(8), 0, dp(8), 0)
@@ -270,62 +276,18 @@ jobs:
                       visibility = View.GONE
                   }
 
-                  webView = WebView(this).apply {
+                  webView = WebView(this)
+                  configureWebView(webView, isPopup = false)
+
+                  webContainer = FrameLayout(this).apply {
                       setBackgroundColor(Color.WHITE)
-
-                      settings.javaScriptEnabled = true
-                      settings.domStorageEnabled = true
-                      settings.databaseEnabled = true
-                      settings.loadsImagesAutomatically = true
-                      settings.useWideViewPort = true
-                      settings.loadWithOverviewMode = true
-                      settings.cacheMode = WebSettings.LOAD_DEFAULT
-                      settings.javaScriptCanOpenWindowsAutomatically = true
-                      settings.userAgentString = settings.userAgentString + " ShiBuBypass/3.6-Native"
-
-                      CookieManager.getInstance().setAcceptCookie(true)
-                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                          CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                      }
-
-                      webChromeClient = object : WebChromeClient() {
-                          override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                              this@NativeWebViewActivity.progress.progress = newProgress
-                              this@NativeWebViewActivity.progress.visibility =
-                                  if (newProgress in 1..99) View.VISIBLE else View.GONE
-                          }
-                      }
-
-                      // Intentionally minimal, matching the older ShiBu WebView behavior:
-                      // let Android WebView own redirects and form POST navigation. We do
-                      // not intercept requests, replay POST bodies, or convert errors to GET.
-                      webViewClient = object : WebViewClient() {
-                          override fun shouldOverrideUrlLoading(
-                              view: WebView?,
-                              request: WebResourceRequest?
-                          ): Boolean {
-                              request?.url?.toString()?.let { updateCurrentUrl(it) }
-                              return false
-                          }
-
-                          @Deprecated("Deprecated in Java")
-                          override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                              if (!url.isNullOrBlank()) updateCurrentUrl(url)
-                              return false
-                          }
-
-                          override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                              cancelAutoReturn()
-                              if (!url.isNullOrBlank()) updateCurrentUrl(url)
-                          }
-
-                          override fun onPageFinished(view: WebView?, url: String?) {
-                              if (!url.isNullOrBlank()) {
-                                  updateCurrentUrl(url)
-                                  scheduleAutoReturn(url)
-                              }
-                          }
-                      }
+                      addView(
+                          webView,
+                          FrameLayout.LayoutParams(
+                              ViewGroup.LayoutParams.MATCH_PARENT,
+                              ViewGroup.LayoutParams.MATCH_PARENT
+                          )
+                      )
                   }
 
                   val nav = LinearLayout(this).apply {
@@ -340,15 +302,18 @@ jobs:
                       setOnClickListener { action() }
                   }
 
-                  nav.addView(navButton("←") { if (webView.canGoBack()) webView.goBack() })
-                  nav.addView(navButton("↻") { webView.reload() })
-                  nav.addView(navButton("→") { if (webView.canGoForward()) webView.goForward() })
+                  nav.addView(navButton("←") {
+                      val active = activeWebView()
+                      if (active.canGoBack()) active.goBack() else if (popupWebView != null) closePopup()
+                  })
+                  nav.addView(navButton("↻") { activeWebView().reload() })
+                  nav.addView(navButton("→") { activeWebView().let { if (it.canGoForward()) it.goForward() } })
 
                   root.addView(header)
                   root.addView(currentUrlText)
                   root.addView(progress, ViewGroup.LayoutParams.MATCH_PARENT, dp(3))
                   root.addView(
-                      webView,
+                      webContainer,
                       LinearLayout.LayoutParams(
                           ViewGroup.LayoutParams.MATCH_PARENT,
                           0,
@@ -358,9 +323,128 @@ jobs:
                   root.addView(nav)
                   setContentView(root)
 
-                  // Start from the exact original user URL. The website performs its
-                  // own normal GET -> redirect -> cookie/session/form sequence.
+                  // Start from the exact original URL. Verification/CAPTCHA/timers remain
+                  // entirely user-driven. ShiBu only follows browser navigation afterwards.
                   webView.loadUrl(startUrl)
+              }
+
+              private fun configureWebView(target: WebView, isPopup: Boolean) {
+                  target.setBackgroundColor(Color.WHITE)
+                  target.settings.apply {
+                      javaScriptEnabled = true
+                      domStorageEnabled = true
+                      databaseEnabled = true
+                      loadsImagesAutomatically = true
+                      useWideViewPort = true
+                      loadWithOverviewMode = true
+                      cacheMode = WebSettings.LOAD_DEFAULT
+                      javaScriptCanOpenWindowsAutomatically = true
+                      setSupportMultipleWindows(true)
+                      if (!userAgentString.contains("ShiBuBypass/3.6-Native")) {
+                          userAgentString = "$userAgentString ShiBuBypass/3.6-Native"
+                      }
+                  }
+
+                  CookieManager.getInstance().setAcceptCookie(true)
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                      CookieManager.getInstance().setAcceptThirdPartyCookies(target, true)
+                  }
+
+                  target.webChromeClient = object : WebChromeClient() {
+                      override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                          if (view === activeWebView()) {
+                              this@NativeWebViewActivity.progress.progress = newProgress
+                              this@NativeWebViewActivity.progress.visibility =
+                                  if (newProgress in 1..99) View.VISIBLE else View.GONE
+                          }
+                      }
+
+                      override fun onCreateWindow(
+                          view: WebView?,
+                          isDialog: Boolean,
+                          isUserGesture: Boolean,
+                          resultMsg: Message?
+                      ): Boolean {
+                          return createPopupWindow(resultMsg)
+                      }
+
+                      override fun onCloseWindow(window: WebView?) {
+                          if (window != null && window === popupWebView) closePopup()
+                      }
+                  }
+
+                  target.webViewClient = object : WebViewClient() {
+                      override fun shouldOverrideUrlLoading(
+                          view: WebView?,
+                          request: WebResourceRequest?
+                      ): Boolean {
+                          request?.url?.toString()?.let { updateCurrentUrl(it) }
+                          return false
+                      }
+
+                      @Deprecated("Deprecated in Java")
+                      override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                          if (!url.isNullOrBlank()) updateCurrentUrl(url)
+                          return false
+                      }
+
+                      override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                          cancelAutoReturn()
+                          if (!url.isNullOrBlank()) updateCurrentUrl(url)
+                      }
+
+                      override fun onPageFinished(view: WebView?, url: String?) {
+                          if (!url.isNullOrBlank() && view != null) {
+                              updateCurrentUrl(url)
+                              scheduleAutoReturn(url, view, isPopup)
+                          }
+                      }
+
+                      override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                          if (!url.isNullOrBlank()) updateCurrentUrl(url)
+                      }
+                  }
+              }
+
+              private fun createPopupWindow(resultMsg: Message?): Boolean {
+                  if (resultMsg == null || !::webContainer.isInitialized) return false
+                  val transport = resultMsg.obj as? WebView.WebViewTransport ?: return false
+
+                  closePopup(restoreMain = false)
+
+                  val popup = WebView(this)
+                  popupWebView = popup
+                  configureWebView(popup, isPopup = true)
+                  webView.visibility = View.GONE
+                  webContainer.addView(
+                      popup,
+                      FrameLayout.LayoutParams(
+                          ViewGroup.LayoutParams.MATCH_PARENT,
+                          ViewGroup.LayoutParams.MATCH_PARENT
+                      )
+                  )
+
+                  transport.webView = popup
+                  resultMsg.sendToTarget()
+                  return true
+              }
+
+              private fun activeWebView(): WebView = popupWebView ?: webView
+
+              private fun closePopup(restoreMain: Boolean = true) {
+                  cancelAutoReturn()
+                  val popup = popupWebView ?: return
+                  popupWebView = null
+                  try {
+                      webContainer.removeView(popup)
+                      popup.stopLoading()
+                      popup.destroy()
+                  } catch (_: Exception) {
+                  }
+                  if (restoreMain && ::webView.isInitialized) {
+                      webView.visibility = View.VISIBLE
+                      webView.url?.let { updateCurrentUrl(it) }
+                  }
               }
 
               private fun updateCurrentUrl(url: String) {
@@ -372,6 +456,7 @@ jobs:
               private fun cancelAutoReturn() {
                   val task = pendingAutoReturn ?: return
                   if (::webView.isInitialized) webView.removeCallbacks(task)
+                  popupWebView?.removeCallbacks(task)
                   pendingAutoReturn = null
               }
 
@@ -396,21 +481,24 @@ jobs:
                   return true
               }
 
-              private fun scheduleAutoReturn(url: String) {
+              private fun scheduleAutoReturn(url: String, source: WebView, fromPopup: Boolean) {
                   cancelAutoReturn()
                   if (!isAutoReturnCandidate(url)) return
 
                   val candidate = url
+                  val delay = if (fromPopup) 1800L else 1200L
                   val task = Runnable {
                       pendingAutoReturn = null
-                      if (!::webView.isInitialized || isFinishing || isDestroyed) return@Runnable
-                      val liveUrl = webView.url ?: return@Runnable
+                      if (isFinishing || isDestroyed) return@Runnable
+                      if (fromPopup && source !== popupWebView) return@Runnable
+                      if (!fromPopup && source !== webView) return@Runnable
+                      val liveUrl = source.url ?: return@Runnable
                       if (liveUrl != candidate || !isAutoReturnCandidate(liveUrl)) return@Runnable
                       updateCurrentUrl(liveUrl)
                       returnCurrentUrl()
                   }
                   pendingAutoReturn = task
-                  webView.postDelayed(task, 1200L)
+                  source.postDelayed(task, delay)
               }
 
               private fun returnCurrentUrl() {
@@ -429,7 +517,10 @@ jobs:
 
               @Deprecated("Deprecated in Java")
               override fun onBackPressed() {
-                  if (::webView.isInitialized && webView.canGoBack()) {
+                  val popup = popupWebView
+                  if (popup != null) {
+                      if (popup.canGoBack()) popup.goBack() else closePopup()
+                  } else if (::webView.isInitialized && webView.canGoBack()) {
                       webView.goBack()
                   } else {
                       super.onBackPressed()
@@ -438,6 +529,15 @@ jobs:
 
               override fun onDestroy() {
                   cancelAutoReturn()
+                  popupWebView?.let { popup ->
+                      try {
+                          if (::webContainer.isInitialized) webContainer.removeView(popup)
+                          popup.stopLoading()
+                          popup.destroy()
+                      } catch (_: Exception) {
+                      }
+                  }
+                  popupWebView = null
                   if (::webView.isInitialized) {
                       webView.stopLoading()
                       webView.destroy()
@@ -488,13 +588,13 @@ jobs:
         run: |
           cd "$PROJECT_DIR"
           flutter build apk --release
-          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Android.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Android.apk"
 
       - name: Upload Android
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Android
-          path: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Android.apk
+          name: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Android
+          path: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Android.apk
           if-no-files-found: error
 
   windows:
@@ -513,8 +613,8 @@ jobs:
       - name: Extract source
         shell: pwsh
         run: |
-          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.6_NATIVE_AUTO_FINAL.zip' | Select-Object -First 1
-          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.6_NATIVE_AUTO_FINAL.zip in repo root' }
+          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.6_NATIVE_POPUP_FINAL.zip' | Select-Object -First 1
+          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.6_NATIVE_POPUP_FINAL.zip in repo root' }
           Remove-Item universal -Recurse -Force -ErrorAction SilentlyContinue
           Expand-Archive $zip.FullName universal
           $project = Get-ChildItem universal -Recurse -Filter pubspec.yaml | Select-Object -First 1
@@ -544,13 +644,13 @@ jobs:
           "@ | Set-Content flutter_launcher_icons.yaml
           dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
           flutter build windows --release
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "$env:GITHUB_WORKSPACE\ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Windows.zip"
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "$env:GITHUB_WORKSPACE\ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Windows.zip"
 
       - name: Upload Windows
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Windows
-          path: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Windows.zip
+          name: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Windows
+          path: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Windows.zip
           if-no-files-found: error
 
   linux:
@@ -591,13 +691,13 @@ jobs:
           cp -r /tmp/shibu_assets assets
           flutter pub get
           flutter build linux --release
-          tar -C build/linux/x64/release -czf "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Linux.tar.gz" bundle
+          tar -C build/linux/x64/release -czf "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Linux.tar.gz" bundle
 
       - name: Upload Linux
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Linux
-          path: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Linux.tar.gz
+          name: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Linux
+          path: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Linux.tar.gz
           if-no-files-found: error
 
   macos:
@@ -642,13 +742,13 @@ jobs:
           flutter build macos --release
           APP="$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -n 1)"
           test -n "$APP" || { echo "macOS .app not found"; exit 1; }
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-macOS.zip"
 
       - name: Upload macOS
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-macOS
-          path: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-macOS.zip
+          name: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-macOS
+          path: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-macOS.zip
           if-no-files-found: error
 
   ios:
@@ -699,11 +799,11 @@ jobs:
           rm -rf Payload
           mkdir Payload
           cp -R build/ios/iphoneos/Runner.app Payload/
-          zip -qry "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-iOS-unsigned.ipa" Payload
+          zip -qry "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-iOS-unsigned.ipa" Payload
 
       - name: Upload iOS
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-iOS-unsigned
-          path: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-iOS-unsigned.ipa
+          name: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-iOS-unsigned
+          path: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-iOS-unsigned.ipa
           if-no-files-found: error
