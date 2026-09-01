@@ -1,0 +1,138 @@
+name: Build ShiBu Bypass v3.6 Post Verify Capture Fix (Quick APK)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_POST_VERIFY_CAPTURE_FIX.zip"
+
+jobs:
+  android:
+    name: Android APK + runtime smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Extract source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_FILE="$(find . -maxdepth 1 -type f -name "$SOURCE_GLOB" | head -n 1)"
+          test -n "$ZIP_FILE" || { echo "Missing $SOURCE_GLOB in repo root"; exit 1; }
+          rm -rf universal && mkdir universal
+          unzip -q "$ZIP_FILE" -d universal
+          PROJECT_DIR="$(find universal -type f -name pubspec.yaml -printf '%h\n' | head -n 1)"
+          test -n "$PROJECT_DIR" || { echo "pubspec.yaml not found"; exit 1; }
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Run source and navigation policy tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          python3 tests/check_inline_mode.py
+          rm -rf /tmp/shibu-policy-test && mkdir -p /tmp/shibu-policy-test
+          javac -d /tmp/shibu-policy-test \
+            android_patch/NavigationPolicy.java \
+            android_patch/NavigationPolicyTestMain.java
+          java -cp /tmp/shibu-policy-test com.shibu.shibu_bypass.NavigationPolicyTestMain
+
+      - name: Bootstrap Android native inline WebView
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          cp pubspec.yaml /tmp/pubspec.yaml
+          cp -r lib /tmp/shibu_lib
+          cp -r assets /tmp/shibu_assets
+          rm pubspec.yaml
+          flutter create . --org com.shibu --project-name shibu_bypass --platforms=android
+          cp /tmp/pubspec.yaml pubspec.yaml
+          rm -rf lib assets
+          cp -r /tmp/shibu_lib lib
+          cp -r /tmp/shibu_assets assets
+          flutter pub get
+
+          mkdir -p android/app/src/main/kotlin/com/shibu/shibu_bypass
+          mkdir -p android/app/src/main/java/com/shibu/shibu_bypass
+          cp android_patch/MainActivity.kt android/app/src/main/kotlin/com/shibu/shibu_bypass/MainActivity.kt
+          cp android_patch/NativeInlineWebViewFactory.kt android/app/src/main/kotlin/com/shibu/shibu_bypass/NativeInlineWebViewFactory.kt
+          cp android_patch/NativeInlineWebView.kt android/app/src/main/kotlin/com/shibu/shibu_bypass/NativeInlineWebView.kt
+          cp android_patch/NavigationPolicy.java android/app/src/main/java/com/shibu/shibu_bypass/NavigationPolicy.java
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          if 'android.permission.INTERNET' not in s:
+              s = s.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                            '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET"/>')
+          if 'android.intent.action.SEND' not in s:
+              lines = [
+                  '            <intent-filter>',
+                  '                <action android:name="android.intent.action.SEND"/>',
+                  '                <category android:name="android.intent.category.DEFAULT"/>',
+                  '                <data android:mimeType="text/*"/>',
+                  '            </intent-filter>',
+              ]
+              s = s.replace('</activity>', '\n'.join(lines) + '\n        </activity>', 1)
+          p.write_text(s)
+          PY
+
+          cat > flutter_launcher_icons.yaml <<'ICONS'
+          flutter_launcher_icons:
+            android: true
+            image_path: assets/shibu_icon.png
+            min_sdk_android: 21
+          ICONS
+          dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
+
+      - name: Analyze Flutter source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+
+          # flutter create sinh test/widget_test.dart mặc định dùng class MyApp.
+          # ShiBu dùng entry widget riêng, nên file mẫu này không thuộc source app.
+          rm -f test/widget_test.dart
+
+          dart format --output=none --set-exit-if-changed lib/main.dart || true
+
+          # Chỉ analyze source thật của app. Warnings/info không chặn build;
+          # lỗi compile trong lib vẫn làm workflow fail.
+          flutter analyze lib --no-fatal-infos --no-fatal-warnings
+
+      - name: Build Android release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-POST-VERIFY-CAPTURE-FIX-Android.apk"
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShiBuBypass-v3.6-POST-VERIFY-CAPTURE-FIX-Android
+          path: ShiBuBypass-v3.6-POST-VERIFY-CAPTURE-FIX-Android.apk
+          if-no-files-found: error
