@@ -1,4 +1,4 @@
-name: Build ShiBu Bypass Universal v3.6 Native FIX Patched
+name: Build ShiBu Bypass Universal v3.6 Native Auto Final
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_NATIVE_FIXED_PATCHED.zip"
+  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_NATIVE_AUTO_FINAL.zip"
 
 jobs:
   android:
@@ -171,6 +171,7 @@ jobs:
           import android.graphics.Color
           import android.os.Build
           import android.os.Bundle
+          import android.net.Uri
           import android.view.Gravity
           import android.view.View
           import android.view.ViewGroup
@@ -196,6 +197,7 @@ jobs:
               private lateinit var progress: ProgressBar
               private lateinit var currentUrlText: TextView
               private var currentUrl: String? = null
+              private var pendingAutoReturn: Runnable? = null
 
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
@@ -230,7 +232,7 @@ jobs:
                   }
 
                   val title = TextView(this).apply {
-                      text = "ShiBu Native WebView"
+                      text = "ShiBu Native WebView · Auto"
                       textSize = 17f
                       setTextColor(Color.WHITE)
                       setPadding(dp(8), 0, dp(8), 0)
@@ -313,11 +315,15 @@ jobs:
                           }
 
                           override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                              cancelAutoReturn()
                               if (!url.isNullOrBlank()) updateCurrentUrl(url)
                           }
 
                           override fun onPageFinished(view: WebView?, url: String?) {
-                              if (!url.isNullOrBlank()) updateCurrentUrl(url)
+                              if (!url.isNullOrBlank()) {
+                                  updateCurrentUrl(url)
+                                  scheduleAutoReturn(url)
+                              }
                           }
                       }
                   }
@@ -363,6 +369,50 @@ jobs:
                   currentUrlText.text = url
               }
 
+              private fun cancelAutoReturn() {
+                  val task = pendingAutoReturn ?: return
+                  if (::webView.isInitialized) webView.removeCallbacks(task)
+                  pendingAutoReturn = null
+              }
+
+              private fun isVerificationUrl(uri: Uri): Boolean {
+                  val host = uri.host?.lowercase()?.trimEnd('.') ?: return false
+                  val path = uri.path.orEmpty().lowercase()
+                  if ((host == "www.google.com" || host.endsWith(".google.com")) && path.contains("/recaptcha/")) return true
+                  if (host == "www.recaptcha.net" || host.endsWith(".recaptcha.net")) return true
+                  if (host == "challenges.cloudflare.com") return true
+                  if (host == "hcaptcha.com" || host.endsWith(".hcaptcha.com")) return true
+                  if (host == "gstatic.com" || host.endsWith(".gstatic.com")) return true
+                  return false
+              }
+
+              private fun isAutoReturnCandidate(url: String): Boolean {
+                  val uri = try { Uri.parse(url) } catch (_: Exception) { return false }
+                  val scheme = uri.scheme?.lowercase() ?: return false
+                  if (scheme != "http" && scheme != "https") return false
+                  val host = uri.host?.lowercase()?.trimEnd('.') ?: return false
+                  if (host == "link4m.org" || host.endsWith(".link4m.org")) return false
+                  if (isVerificationUrl(uri)) return false
+                  return true
+              }
+
+              private fun scheduleAutoReturn(url: String) {
+                  cancelAutoReturn()
+                  if (!isAutoReturnCandidate(url)) return
+
+                  val candidate = url
+                  val task = Runnable {
+                      pendingAutoReturn = null
+                      if (!::webView.isInitialized || isFinishing || isDestroyed) return@Runnable
+                      val liveUrl = webView.url ?: return@Runnable
+                      if (liveUrl != candidate || !isAutoReturnCandidate(liveUrl)) return@Runnable
+                      updateCurrentUrl(liveUrl)
+                      returnCurrentUrl()
+                  }
+                  pendingAutoReturn = task
+                  webView.postDelayed(task, 1200L)
+              }
+
               private fun returnCurrentUrl() {
                   val url = currentUrl
                   if (url.isNullOrBlank() ||
@@ -387,6 +437,7 @@ jobs:
               }
 
               override fun onDestroy() {
+                  cancelAutoReturn()
                   if (::webView.isInitialized) {
                       webView.stopLoading()
                       webView.destroy()
@@ -437,13 +488,13 @@ jobs:
         run: |
           cd "$PROJECT_DIR"
           flutter build apk --release
-          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-FIX-Android.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Android.apk"
 
       - name: Upload Android
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-FIX-Android
-          path: ShiBuBypass-v3.6-NATIVE-FIX-Android.apk
+          name: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Android
+          path: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Android.apk
           if-no-files-found: error
 
   windows:
@@ -462,8 +513,8 @@ jobs:
       - name: Extract source
         shell: pwsh
         run: |
-          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.6_NATIVE_FIXED_PATCHED.zip' | Select-Object -First 1
-          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.6_NATIVE_FIXED_PATCHED.zip in repo root' }
+          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.6_NATIVE_AUTO_FINAL.zip' | Select-Object -First 1
+          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.6_NATIVE_AUTO_FINAL.zip in repo root' }
           Remove-Item universal -Recurse -Force -ErrorAction SilentlyContinue
           Expand-Archive $zip.FullName universal
           $project = Get-ChildItem universal -Recurse -Filter pubspec.yaml | Select-Object -First 1
@@ -493,13 +544,13 @@ jobs:
           "@ | Set-Content flutter_launcher_icons.yaml
           dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
           flutter build windows --release
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "$env:GITHUB_WORKSPACE\ShiBuBypass-v3.6-NATIVE-FIX-Windows.zip"
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "$env:GITHUB_WORKSPACE\ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Windows.zip"
 
       - name: Upload Windows
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-FIX-Windows
-          path: ShiBuBypass-v3.6-NATIVE-FIX-Windows.zip
+          name: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Windows
+          path: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Windows.zip
           if-no-files-found: error
 
   linux:
@@ -540,13 +591,13 @@ jobs:
           cp -r /tmp/shibu_assets assets
           flutter pub get
           flutter build linux --release
-          tar -C build/linux/x64/release -czf "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-FIX-Linux.tar.gz" bundle
+          tar -C build/linux/x64/release -czf "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Linux.tar.gz" bundle
 
       - name: Upload Linux
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-FIX-Linux
-          path: ShiBuBypass-v3.6-NATIVE-FIX-Linux.tar.gz
+          name: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Linux
+          path: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-Linux.tar.gz
           if-no-files-found: error
 
   macos:
@@ -591,13 +642,13 @@ jobs:
           flutter build macos --release
           APP="$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -n 1)"
           test -n "$APP" || { echo "macOS .app not found"; exit 1; }
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-FIX-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-macOS.zip"
 
       - name: Upload macOS
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-FIX-macOS
-          path: ShiBuBypass-v3.6-NATIVE-FIX-macOS.zip
+          name: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-macOS
+          path: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-macOS.zip
           if-no-files-found: error
 
   ios:
@@ -648,11 +699,11 @@ jobs:
           rm -rf Payload
           mkdir Payload
           cp -R build/ios/iphoneos/Runner.app Payload/
-          zip -qry "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-FIX-iOS-unsigned.ipa" Payload
+          zip -qry "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-iOS-unsigned.ipa" Payload
 
       - name: Upload iOS
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-FIX-iOS-unsigned
-          path: ShiBuBypass-v3.6-NATIVE-FIX-iOS-unsigned.ipa
+          name: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-iOS-unsigned
+          path: ShiBuBypass-v3.6-NATIVE-AUTO-FINAL-iOS-unsigned.ipa
           if-no-files-found: error
