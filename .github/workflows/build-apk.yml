@@ -1,4 +1,4 @@
-name: Build ShiBu Bypass Universal v3.6
+name: Build ShiBu Bypass Universal v3.6 FIX
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6.zip"
+  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_FIXED.zip"
 
 jobs:
   android:
@@ -141,13 +141,13 @@ jobs:
         run: |
           cd "$PROJECT_DIR"
           flutter build apk --release
-          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-Android.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-FIX-Android.apk"
 
       - name: Upload Android
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-Android
-          path: ShiBuBypass-v3.6-Android.apk
+          name: ShiBuBypass-v3.6-FIX-Android
+          path: ShiBuBypass-v3.6-FIX-Android.apk
           if-no-files-found: error
 
   windows:
@@ -166,8 +166,8 @@ jobs:
       - name: Extract source
         shell: pwsh
         run: |
-          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.6.zip' | Select-Object -First 1
-          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.6.zip in repo root' }
+          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.6_FIXED.zip' | Select-Object -First 1
+          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.6_FIXED.zip in repo root' }
           Remove-Item universal -Recurse -Force -ErrorAction SilentlyContinue
           Expand-Archive $zip.FullName universal
           $project = Get-ChildItem universal -Recurse -Filter pubspec.yaml | Select-Object -First 1
@@ -197,13 +197,13 @@ jobs:
           "@ | Set-Content flutter_launcher_icons.yaml
           dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
           flutter build windows --release
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "$env:GITHUB_WORKSPACE\ShiBuBypass-v3.6-Windows.zip"
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "$env:GITHUB_WORKSPACE\ShiBuBypass-v3.6-FIX-Windows.zip"
 
       - name: Upload Windows
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-Windows
-          path: ShiBuBypass-v3.6-Windows.zip
+          name: ShiBuBypass-v3.6-FIX-Windows
+          path: ShiBuBypass-v3.6-FIX-Windows.zip
           if-no-files-found: error
 
   linux:
@@ -244,13 +244,13 @@ jobs:
           cp -r /tmp/shibu_assets assets
           flutter pub get
           flutter build linux --release
-          tar -C build/linux/x64/release -czf "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-Linux.tar.gz" bundle
+          tar -C build/linux/x64/release -czf "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-FIX-Linux.tar.gz" bundle
 
       - name: Upload Linux
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-Linux
-          path: ShiBuBypass-v3.6-Linux.tar.gz
+          name: ShiBuBypass-v3.6-FIX-Linux
+          path: ShiBuBypass-v3.6-FIX-Linux.tar.gz
           if-no-files-found: error
 
   macos:
@@ -295,13 +295,13 @@ jobs:
           flutter build macos --release
           APP="$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -n 1)"
           test -n "$APP" || { echo "macOS .app not found"; exit 1; }
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-FIX-macOS.zip"
 
       - name: Upload macOS
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-macOS
-          path: ShiBuBypass-v3.6-macOS.zip
+          name: ShiBuBypass-v3.6-FIX-macOS
+          path: ShiBuBypass-v3.6-FIX-macOS.zip
           if-no-files-found: error
 
   ios:
@@ -352,11 +352,11 @@ jobs:
           rm -rf Payload
           mkdir Payload
           cp -R build/ios/iphoneos/Runner.app Payload/
-          zip -qry "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-iOS-unsigned.ipa" Payload
+          zip -qry "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-FIX-iOS-unsigned.ipa" Payload
 
       - name: Upload iOS
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-iOS-unsigned
-          path: ShiBuBypass-v3.6-iOS-unsigned.ipa
+          name: ShiBuBypass-v3.6-FIX-iOS-unsigned
+          path: ShiBuBypass-v3.6-FIX-iOS-unsigned.ipa
           if-no-files-found: error
