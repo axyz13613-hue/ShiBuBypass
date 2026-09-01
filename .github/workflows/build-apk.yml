@@ -1,4 +1,4 @@
-name: Build ShiBu Bypass Universal v3.6 Native Video Mode
+name: Build ShiBu Bypass v3.6 Native Video Inline Fix (Tested Android)
 
 on:
   workflow_dispatch:
@@ -9,12 +9,13 @@ permissions:
   contents: read
 
 env:
-  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_NATIVE_VIDEO_MODE.zip"
+  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_NATIVE_VIDEO_INLINE_FIX.zip"
 
 jobs:
   android:
-    name: Android APK
+    name: Android APK + runtime smoke test
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,6 +35,7 @@ jobs:
       - name: Extract source
         shell: bash
         run: |
+          set -euo pipefail
           ZIP_FILE="$(find . -maxdepth 1 -type f -name "$SOURCE_GLOB" | head -n 1)"
           test -n "$ZIP_FILE" || { echo "Missing $SOURCE_GLOB in repo root"; exit 1; }
           rm -rf universal && mkdir universal
@@ -42,9 +44,22 @@ jobs:
           test -n "$PROJECT_DIR" || { echo "pubspec.yaml not found"; exit 1; }
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Bootstrap Android
+      - name: Run source and navigation policy tests
         shell: bash
         run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          python3 tests/check_inline_mode.py
+          rm -rf /tmp/shibu-policy-test && mkdir -p /tmp/shibu-policy-test
+          javac -d /tmp/shibu-policy-test \
+            android_patch/NavigationPolicy.java \
+            android_patch/NavigationPolicyTestMain.java
+          java -cp /tmp/shibu-policy-test com.shibu.shibu_bypass.NavigationPolicyTestMain
+
+      - name: Bootstrap Android native inline WebView
+        shell: bash
+        run: |
+          set -euo pipefail
           cd "$PROJECT_DIR"
           cp pubspec.yaml /tmp/pubspec.yaml
           cp -r lib /tmp/shibu_lib
@@ -57,495 +72,12 @@ jobs:
           cp -r /tmp/shibu_assets assets
           flutter pub get
 
-          # Flutter host + explicit Share Intent bridge + native WebView launcher.
           mkdir -p android/app/src/main/kotlin/com/shibu/shibu_bypass
-          cat > android/app/src/main/kotlin/com/shibu/shibu_bypass/MainActivity.kt <<'EOF'
-          package com.shibu.shibu_bypass
-
-          import android.app.Activity
-          import android.content.Intent
-          import android.os.Bundle
-          import io.flutter.embedding.android.FlutterActivity
-          import io.flutter.embedding.engine.FlutterEngine
-          import io.flutter.plugin.common.MethodChannel
-
-          class MainActivity : FlutterActivity() {
-              private val shareChannelName = "shibu/share"
-              private val nativeWebViewChannelName = "shibu/native_webview"
-              private val nativeWebViewRequestCode = 4636
-
-              private var pendingSharedText: String? = null
-              private var shareChannel: MethodChannel? = null
-              private var pendingNativeResult: MethodChannel.Result? = null
-
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-                  captureShare(intent, notifyFlutter = false)
-              }
-
-              override fun onNewIntent(intent: Intent) {
-                  super.onNewIntent(intent)
-                  setIntent(intent)
-                  captureShare(intent, notifyFlutter = true)
-              }
-
-              private fun captureShare(intent: Intent?, notifyFlutter: Boolean) {
-                  val type = intent?.type ?: return
-                  if (intent.action == Intent.ACTION_SEND && type.startsWith("text/")) {
-                      val text = intent.getStringExtra(Intent.EXTRA_TEXT)
-                      if (!text.isNullOrBlank()) {
-                          pendingSharedText = text
-                          if (notifyFlutter) shareChannel?.invokeMethod("sharedText", text)
-                      }
-                  }
-              }
-
-              override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-                  super.configureFlutterEngine(flutterEngine)
-
-                  shareChannel = MethodChannel(
-                      flutterEngine.dartExecutor.binaryMessenger,
-                      shareChannelName
-                  )
-                  shareChannel?.setMethodCallHandler { call, result ->
-                      if (call.method == "getSharedText") {
-                          val text = pendingSharedText
-                          pendingSharedText = null
-                          result.success(text)
-                      } else {
-                          result.notImplemented()
-                      }
-                  }
-
-                  MethodChannel(
-                      flutterEngine.dartExecutor.binaryMessenger,
-                      nativeWebViewChannelName
-                  ).setMethodCallHandler { call, result ->
-                      when (call.method) {
-                          "open" -> {
-                              val url = call.argument<String>("url")
-                              if (url.isNullOrBlank() ||
-                                  !(url.startsWith("https://") || url.startsWith("http://"))) {
-                                  result.error("bad_url", "Chỉ hỗ trợ URL http/https", null)
-                                  return@setMethodCallHandler
-                              }
-                              if (pendingNativeResult != null) {
-                                  result.error("busy", "Native WebView đang mở", null)
-                                  return@setMethodCallHandler
-                              }
-                              pendingNativeResult = result
-                              val intent = Intent(this, NativeWebViewActivity::class.java)
-                                  .putExtra(NativeWebViewActivity.EXTRA_URL, url)
-                              @Suppress("DEPRECATION")
-                              startActivityForResult(intent, nativeWebViewRequestCode)
-                          }
-                          else -> result.notImplemented()
-                      }
-                  }
-              }
-
-              @Deprecated("Deprecated in Java")
-              override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-                  super.onActivityResult(requestCode, resultCode, data)
-                  if (requestCode != nativeWebViewRequestCode) return
-
-                  val pending = pendingNativeResult
-                  pendingNativeResult = null
-                  if (pending == null) return
-
-                  if (resultCode == Activity.RESULT_OK) {
-                      pending.success(data?.getStringExtra(NativeWebViewActivity.RESULT_URL))
-                  } else {
-                      pending.success(null)
-                  }
-              }
-          }
-          EOF
-
-          cat > android/app/src/main/kotlin/com/shibu/shibu_bypass/NativeWebViewActivity.kt <<'EOF'
-          package com.shibu.shibu_bypass
-
-          import android.app.Activity
-          import android.content.Intent
-          import android.graphics.Bitmap
-          import android.graphics.Color
-          import android.net.Uri
-          import android.os.Build
-          import android.os.Bundle
-          import android.os.Message
-          import android.view.Gravity
-          import android.view.View
-          import android.view.ViewGroup
-          import android.webkit.CookieManager
-          import android.webkit.WebChromeClient
-          import android.webkit.WebResourceRequest
-          import android.webkit.WebSettings
-          import android.webkit.WebView
-          import android.webkit.WebViewClient
-          import android.widget.Button
-          import android.widget.FrameLayout
-          import android.widget.LinearLayout
-          import android.widget.ProgressBar
-          import android.widget.TextView
-          import android.widget.Toast
-
-          class NativeWebViewActivity : Activity() {
-              companion object {
-                  const val EXTRA_URL = "url"
-                  const val RESULT_URL = "result_url"
-              }
-
-              private lateinit var webView: WebView
-              private var popupWebView: WebView? = null
-              private lateinit var webContainer: FrameLayout
-              private lateinit var progress: ProgressBar
-              private lateinit var currentUrlText: TextView
-              private var currentUrl: String? = null
-              private var pendingAutoReturn: Runnable? = null
-
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-
-                  val startUrl = intent.getStringExtra(EXTRA_URL)
-                  if (startUrl.isNullOrBlank() ||
-                      !(startUrl.startsWith("https://") || startUrl.startsWith("http://"))) {
-                      setResult(RESULT_CANCELED)
-                      finish()
-                      return
-                  }
-
-                  window.statusBarColor = Color.rgb(5, 25, 28)
-                  currentUrl = startUrl
-
-                  val root = LinearLayout(this).apply {
-                      orientation = LinearLayout.VERTICAL
-                      setBackgroundColor(Color.rgb(3, 18, 20))
-                  }
-
-                  val header = LinearLayout(this).apply {
-                      orientation = LinearLayout.HORIZONTAL
-                      gravity = Gravity.CENTER_VERTICAL
-                      setPadding(dp(10), dp(8), dp(10), dp(6))
-                      setBackgroundColor(Color.rgb(8, 37, 40))
-                  }
-
-                  val closeButton = Button(this).apply {
-                      text = "‹"
-                      textSize = 24f
-                      setOnClickListener {
-                          if (popupWebView != null) closePopup() else finish()
-                      }
-                  }
-
-                  val title = TextView(this).apply {
-                      text = "ShiBu Native WebView · Video Mode"
-                      textSize = 17f
-                      setTextColor(Color.WHITE)
-                      setPadding(dp(8), 0, dp(8), 0)
-                  }
-
-                  val useButton = Button(this).apply {
-                      text = "Dùng URL này"
-                      setOnClickListener { returnCurrentUrl() }
-                  }
-
-                  header.addView(
-                      closeButton,
-                      LinearLayout.LayoutParams(dp(52), ViewGroup.LayoutParams.WRAP_CONTENT)
-                  )
-                  header.addView(
-                      title,
-                      LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                  )
-                  header.addView(
-                      useButton,
-                      LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                  )
-
-                  currentUrlText = TextView(this).apply {
-                      text = startUrl
-                      textSize = 12f
-                      setTextColor(Color.rgb(185, 203, 205))
-                      setPadding(dp(14), dp(4), dp(14), dp(7))
-                      setBackgroundColor(Color.rgb(8, 37, 40))
-                  }
-
-                  progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-                      max = 100
-                      progress = 0
-                      visibility = View.GONE
-                  }
-
-                  webView = WebView(this)
-                  configureWebView(webView, isPopup = false)
-
-                  webContainer = FrameLayout(this).apply {
-                      setBackgroundColor(Color.WHITE)
-                      addView(
-                          webView,
-                          FrameLayout.LayoutParams(
-                              ViewGroup.LayoutParams.MATCH_PARENT,
-                              ViewGroup.LayoutParams.MATCH_PARENT
-                          )
-                      )
-                  }
-
-                  val nav = LinearLayout(this).apply {
-                      orientation = LinearLayout.HORIZONTAL
-                      gravity = Gravity.CENTER
-                      setPadding(dp(6), dp(5), dp(6), dp(5))
-                      setBackgroundColor(Color.rgb(8, 37, 40))
-                  }
-
-                  fun navButton(label: String, action: () -> Unit): Button = Button(this).apply {
-                      text = label
-                      setOnClickListener { action() }
-                  }
-
-                  nav.addView(navButton("←") {
-                      val active = activeWebView()
-                      if (active.canGoBack()) active.goBack() else if (popupWebView != null) closePopup()
-                  })
-                  nav.addView(navButton("↻") { activeWebView().reload() })
-                  nav.addView(navButton("→") { activeWebView().let { if (it.canGoForward()) it.goForward() } })
-
-                  root.addView(header)
-                  root.addView(currentUrlText)
-                  root.addView(progress, ViewGroup.LayoutParams.MATCH_PARENT, dp(3))
-                  root.addView(
-                      webContainer,
-                      LinearLayout.LayoutParams(
-                          ViewGroup.LayoutParams.MATCH_PARENT,
-                          0,
-                          1f
-                      )
-                  )
-                  root.addView(nav)
-                  setContentView(root)
-
-                  // Start from the exact original URL. Verification/CAPTCHA/timers remain
-                  // entirely user-driven. Video Mode stays open and tracks the live URL
-                  // until the user explicitly chooses "Dùng URL này".
-                  webView.loadUrl(startUrl)
-              }
-
-              private fun configureWebView(target: WebView, isPopup: Boolean) {
-                  target.setBackgroundColor(Color.WHITE)
-                  target.settings.apply {
-                      javaScriptEnabled = true
-                      domStorageEnabled = true
-                      databaseEnabled = true
-                      loadsImagesAutomatically = true
-                      useWideViewPort = true
-                      loadWithOverviewMode = true
-                      cacheMode = WebSettings.LOAD_DEFAULT
-                      javaScriptCanOpenWindowsAutomatically = true
-                      setSupportMultipleWindows(true)
-                      if (!userAgentString.contains("ShiBuBypass/3.6-Native")) {
-                          userAgentString = "$userAgentString ShiBuBypass/3.6-Native"
-                      }
-                  }
-
-                  CookieManager.getInstance().setAcceptCookie(true)
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                      CookieManager.getInstance().setAcceptThirdPartyCookies(target, true)
-                  }
-
-                  target.webChromeClient = object : WebChromeClient() {
-                      override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                          if (view === activeWebView()) {
-                              this@NativeWebViewActivity.progress.progress = newProgress
-                              this@NativeWebViewActivity.progress.visibility =
-                                  if (newProgress in 1..99) View.VISIBLE else View.GONE
-                          }
-                      }
-
-                      override fun onCreateWindow(
-                          view: WebView?,
-                          isDialog: Boolean,
-                          isUserGesture: Boolean,
-                          resultMsg: Message?
-                      ): Boolean {
-                          return createPopupWindow(resultMsg)
-                      }
-
-                      override fun onCloseWindow(window: WebView?) {
-                          if (window != null && window === popupWebView) closePopup()
-                      }
-                  }
-
-                  target.webViewClient = object : WebViewClient() {
-                      override fun shouldOverrideUrlLoading(
-                          view: WebView?,
-                          request: WebResourceRequest?
-                      ): Boolean {
-                          request?.url?.toString()?.let { updateCurrentUrl(it) }
-                          return false
-                      }
-
-                      @Deprecated("Deprecated in Java")
-                      override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                          if (!url.isNullOrBlank()) updateCurrentUrl(url)
-                          return false
-                      }
-
-                      override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                          if (!url.isNullOrBlank()) updateCurrentUrl(url)
-                      }
-
-                      override fun onPageFinished(view: WebView?, url: String?) {
-                          if (!url.isNullOrBlank() && view != null) {
-                              updateCurrentUrl(url)
-                          }
-                      }
-
-                      override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
-                          if (!url.isNullOrBlank()) updateCurrentUrl(url)
-                      }
-                  }
-              }
-
-              private fun createPopupWindow(resultMsg: Message?): Boolean {
-                  if (resultMsg == null || !::webContainer.isInitialized) return false
-                  val transport = resultMsg.obj as? WebView.WebViewTransport ?: return false
-
-                  closePopup(restoreMain = false)
-
-                  val popup = WebView(this)
-                  popupWebView = popup
-                  configureWebView(popup, isPopup = true)
-                  webView.visibility = View.GONE
-                  webContainer.addView(
-                      popup,
-                      FrameLayout.LayoutParams(
-                          ViewGroup.LayoutParams.MATCH_PARENT,
-                          ViewGroup.LayoutParams.MATCH_PARENT
-                      )
-                  )
-
-                  transport.webView = popup
-                  resultMsg.sendToTarget()
-                  return true
-              }
-
-              private fun activeWebView(): WebView = popupWebView ?: webView
-
-              private fun closePopup(restoreMain: Boolean = true) {
-                  val popup = popupWebView ?: return
-                  popupWebView = null
-                  try {
-                      webContainer.removeView(popup)
-                      popup.stopLoading()
-                      popup.destroy()
-                  } catch (_: Exception) {
-                  }
-                  if (restoreMain && ::webView.isInitialized) {
-                      webView.visibility = View.VISIBLE
-                      webView.url?.let { updateCurrentUrl(it) }
-                  }
-              }
-
-              private fun updateCurrentUrl(url: String) {
-                  if (!(url.startsWith("https://") || url.startsWith("http://"))) return
-                  currentUrl = url
-                  currentUrlText.text = url
-              }
-
-              private fun cancelAutoReturn() {
-                  val task = pendingAutoReturn ?: return
-                  if (::webView.isInitialized) webView.removeCallbacks(task)
-                  popupWebView?.removeCallbacks(task)
-                  pendingAutoReturn = null
-              }
-
-              private fun isVerificationUrl(uri: Uri): Boolean {
-                  val host = uri.host?.lowercase()?.trimEnd('.') ?: return false
-                  val path = uri.path.orEmpty().lowercase()
-                  if ((host == "www.google.com" || host.endsWith(".google.com")) && path.contains("/recaptcha/")) return true
-                  if (host == "www.recaptcha.net" || host.endsWith(".recaptcha.net")) return true
-                  if (host == "challenges.cloudflare.com") return true
-                  if (host == "hcaptcha.com" || host.endsWith(".hcaptcha.com")) return true
-                  if (host == "gstatic.com" || host.endsWith(".gstatic.com")) return true
-                  return false
-              }
-
-              private fun isAutoReturnCandidate(url: String): Boolean {
-                  val uri = try { Uri.parse(url) } catch (_: Exception) { return false }
-                  val scheme = uri.scheme?.lowercase() ?: return false
-                  if (scheme != "http" && scheme != "https") return false
-                  val host = uri.host?.lowercase()?.trimEnd('.') ?: return false
-                  if (host == "link4m.org" || host.endsWith(".link4m.org")) return false
-                  if (isVerificationUrl(uri)) return false
-                  return true
-              }
-
-              private fun scheduleAutoReturn(url: String, source: WebView, fromPopup: Boolean) {
-                  cancelAutoReturn()
-                  if (!isAutoReturnCandidate(url)) return
-
-                  val candidate = url
-                  val delay = if (fromPopup) 1800L else 1200L
-                  val task = Runnable {
-                      pendingAutoReturn = null
-                      if (isFinishing || isDestroyed) return@Runnable
-                      if (fromPopup && source !== popupWebView) return@Runnable
-                      if (!fromPopup && source !== webView) return@Runnable
-                      val liveUrl = source.url ?: return@Runnable
-                      if (liveUrl != candidate || !isAutoReturnCandidate(liveUrl)) return@Runnable
-                      updateCurrentUrl(liveUrl)
-                      returnCurrentUrl()
-                  }
-                  pendingAutoReturn = task
-                  source.postDelayed(task, delay)
-              }
-
-              private fun returnCurrentUrl() {
-                  val url = currentUrl
-                  if (url.isNullOrBlank() ||
-                      !(url.startsWith("https://") || url.startsWith("http://"))) {
-                      Toast.makeText(this, "Chưa có URL http/https để dùng", Toast.LENGTH_SHORT).show()
-                      return
-                  }
-                  setResult(
-                      RESULT_OK,
-                      Intent().putExtra(RESULT_URL, url)
-                  )
-                  finish()
-              }
-
-              @Deprecated("Deprecated in Java")
-              override fun onBackPressed() {
-                  val popup = popupWebView
-                  if (popup != null) {
-                      if (popup.canGoBack()) popup.goBack() else closePopup()
-                  } else if (::webView.isInitialized && webView.canGoBack()) {
-                      webView.goBack()
-                  } else {
-                      super.onBackPressed()
-                  }
-              }
-
-              override fun onDestroy() {
-                  popupWebView?.let { popup ->
-                      try {
-                          if (::webContainer.isInitialized) webContainer.removeView(popup)
-                          popup.stopLoading()
-                          popup.destroy()
-                      } catch (_: Exception) {
-                      }
-                  }
-                  popupWebView = null
-                  if (::webView.isInitialized) {
-                      webView.stopLoading()
-                      webView.destroy()
-                  }
-                  super.onDestroy()
-              }
-
-              private fun dp(value: Int): Int =
-                  (value * resources.displayMetrics.density).toInt()
-          }
-          EOF
+          mkdir -p android/app/src/main/java/com/shibu/shibu_bypass
+          cp android_patch/MainActivity.kt android/app/src/main/kotlin/com/shibu/shibu_bypass/MainActivity.kt
+          cp android_patch/NativeInlineWebViewFactory.kt android/app/src/main/kotlin/com/shibu/shibu_bypass/NativeInlineWebViewFactory.kt
+          cp android_patch/NativeInlineWebView.kt android/app/src/main/kotlin/com/shibu/shibu_bypass/NativeInlineWebView.kt
+          cp android_patch/NavigationPolicy.java android/app/src/main/java/com/shibu/shibu_bypass/NavigationPolicy.java
 
           python3 - <<'PY'
           from pathlib import Path
@@ -563,244 +95,48 @@ jobs:
                   '            </intent-filter>',
               ]
               s = s.replace('</activity>', '\n'.join(lines) + '\n        </activity>', 1)
-          if '.NativeWebViewActivity' not in s:
-              native = ('        <activity\n'
-                        '            android:name=".NativeWebViewActivity"\n'
-                        '            android:exported="false"\n'
-                        '            android:theme="@style/LaunchTheme" />\n')
-              s = s.replace('</application>', native + '    </application>', 1)
           p.write_text(s)
           PY
 
-          cat > flutter_launcher_icons.yaml <<'EOF'
+          cat > flutter_launcher_icons.yaml <<'ICONS'
           flutter_launcher_icons:
             android: true
             image_path: assets/shibu_icon.png
             min_sdk_android: 21
-          EOF
+          ICONS
           dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
+
+      - name: Analyze Flutter source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          dart format --output=none --set-exit-if-changed lib/main.dart || true
+          flutter analyze --no-fatal-infos
 
       - name: Build Android release APK
         shell: bash
         run: |
+          set -euo pipefail
           cd "$PROJECT_DIR"
           flutter build apk --release
-          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Android.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-VIDEO-INLINE-FIX-Android.apk"
 
-      - name: Upload Android
+      - name: Android emulator runtime smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 31
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            adb install -r "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-VIDEO-INLINE-FIX-Android.apk"
+            python3 "$PROJECT_DIR/tests/android_ui_smoke.py"
+
+      - name: Upload tested Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Android
-          path: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Android.apk
-          if-no-files-found: error
-
-  windows:
-    name: Windows x64
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Extract source
-        shell: pwsh
-        run: |
-          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.6_NATIVE_VIDEO_MODE.zip' | Select-Object -First 1
-          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.6_NATIVE_VIDEO_MODE.zip in repo root' }
-          Remove-Item universal -Recurse -Force -ErrorAction SilentlyContinue
-          Expand-Archive $zip.FullName universal
-          $project = Get-ChildItem universal -Recurse -Filter pubspec.yaml | Select-Object -First 1
-          if (-not $project) { throw 'pubspec.yaml not found' }
-          "PROJECT_DIR=$($project.Directory.FullName)" | Out-File $env:GITHUB_ENV -Append
-
-      - name: Bootstrap and build Windows
-        shell: pwsh
-        run: |
-          Set-Location $env:PROJECT_DIR
-          Copy-Item pubspec.yaml "$env:TEMP\pubspec.yaml"
-          Copy-Item lib "$env:TEMP\shibu_lib" -Recurse
-          Copy-Item assets "$env:TEMP\shibu_assets" -Recurse
-          Remove-Item pubspec.yaml
-          flutter create . --org com.shibu --project-name shibu_bypass --platforms=windows
-          Copy-Item "$env:TEMP\pubspec.yaml" pubspec.yaml
-          Remove-Item lib,assets -Recurse -Force
-          Copy-Item "$env:TEMP\shibu_lib" lib -Recurse
-          Copy-Item "$env:TEMP\shibu_assets" assets -Recurse
-          flutter pub get
-          @"
-          flutter_launcher_icons:
-            windows:
-              generate: true
-              image_path: assets/shibu_icon.png
-              icon_size: 256
-          "@ | Set-Content flutter_launcher_icons.yaml
-          dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
-          flutter build windows --release
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "$env:GITHUB_WORKSPACE\ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Windows.zip"
-
-      - name: Upload Windows
-        uses: actions/upload-artifact@v4
-        with:
-          name: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Windows
-          path: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Windows.zip
-          if-no-files-found: error
-
-  linux:
-    name: Linux x64
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-
-      - name: Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Extract and build Linux
-        shell: bash
-        run: |
-          ZIP_FILE="$(find . -maxdepth 1 -type f -name "$SOURCE_GLOB" | head -n 1)"
-          test -n "$ZIP_FILE" || { echo "Missing source ZIP"; exit 1; }
-          rm -rf universal && mkdir universal
-          unzip -q "$ZIP_FILE" -d universal
-          PROJECT_DIR="$(find universal -type f -name pubspec.yaml -printf '%h\n' | head -n 1)"
-          cd "$PROJECT_DIR"
-          cp pubspec.yaml /tmp/pubspec.yaml
-          cp -r lib /tmp/shibu_lib
-          cp -r assets /tmp/shibu_assets
-          rm pubspec.yaml
-          flutter create . --org com.shibu --project-name shibu_bypass --platforms=linux
-          cp /tmp/pubspec.yaml pubspec.yaml
-          rm -rf lib assets
-          cp -r /tmp/shibu_lib lib
-          cp -r /tmp/shibu_assets assets
-          flutter pub get
-          flutter build linux --release
-          tar -C build/linux/x64/release -czf "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Linux.tar.gz" bundle
-
-      - name: Upload Linux
-        uses: actions/upload-artifact@v4
-        with:
-          name: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Linux
-          path: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Linux.tar.gz
-          if-no-files-found: error
-
-  macos:
-    name: macOS
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Extract and build macOS
-        shell: bash
-        run: |
-          ZIP_FILE="$(find . -maxdepth 1 -type f -name "$SOURCE_GLOB" | head -n 1)"
-          test -n "$ZIP_FILE" || { echo "Missing source ZIP"; exit 1; }
-          rm -rf universal && mkdir universal
-          unzip -q "$ZIP_FILE" -d universal
-          PROJECT_DIR="$(find universal -type f -name pubspec.yaml -print | head -n 1 | xargs dirname)"
-          cd "$PROJECT_DIR"
-          cp pubspec.yaml /tmp/pubspec.yaml
-          cp -R lib /tmp/shibu_lib
-          cp -R assets /tmp/shibu_assets
-          rm pubspec.yaml
-          flutter create . --org com.shibu --project-name shibu_bypass --platforms=macos
-          cp /tmp/pubspec.yaml pubspec.yaml
-          rm -rf lib assets
-          cp -R /tmp/shibu_lib lib
-          cp -R /tmp/shibu_assets assets
-          flutter pub get
-          cat > flutter_launcher_icons.yaml <<'EOF'
-          flutter_launcher_icons:
-            macos:
-              generate: true
-              image_path: assets/shibu_icon.png
-          EOF
-          dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
-          flutter build macos --release
-          APP="$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -n 1)"
-          test -n "$APP" || { echo "macOS .app not found"; exit 1; }
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-macOS.zip"
-
-      - name: Upload macOS
-        uses: actions/upload-artifact@v4
-        with:
-          name: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-macOS
-          path: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-macOS.zip
-          if-no-files-found: error
-
-  ios:
-    name: iOS unsigned IPA
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Extract source
-        shell: bash
-        run: |
-          ZIP_FILE="$(find . -maxdepth 1 -type f -name "$SOURCE_GLOB" | head -n 1)"
-          test -n "$ZIP_FILE" || { echo "Missing source ZIP"; exit 1; }
-          rm -rf universal && mkdir universal
-          unzip -q "$ZIP_FILE" -d universal
-          PROJECT_DIR="$(find universal -type f -name pubspec.yaml -print | head -n 1 | xargs dirname)"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-
-      - name: Bootstrap and build unsigned iOS
-        shell: bash
-        run: |
-          cd "$PROJECT_DIR"
-          cp pubspec.yaml /tmp/pubspec.yaml
-          cp -R lib /tmp/shibu_lib
-          cp -R assets /tmp/shibu_assets
-          rm pubspec.yaml
-          flutter create . --org com.shibu --project-name shibu_bypass --platforms=ios
-          cp /tmp/pubspec.yaml pubspec.yaml
-          rm -rf lib assets
-          cp -R /tmp/shibu_lib lib
-          cp -R /tmp/shibu_assets assets
-          flutter pub get
-          cat > flutter_launcher_icons.yaml <<'EOF'
-          flutter_launcher_icons:
-            ios: true
-            image_path: assets/shibu_icon.png
-            remove_alpha_ios: true
-          EOF
-          dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
-          flutter build ios --release --no-codesign
-          rm -rf Payload
-          mkdir Payload
-          cp -R build/ios/iphoneos/Runner.app Payload/
-          zip -qry "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-iOS-unsigned.ipa" Payload
-
-      - name: Upload iOS
-        uses: actions/upload-artifact@v4
-        with:
-          name: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-iOS-unsigned
-          path: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-iOS-unsigned.ipa
+          name: ShiBuBypass-v3.6-NATIVE-VIDEO-INLINE-FIX-Android
+          path: ShiBuBypass-v3.6-NATIVE-VIDEO-INLINE-FIX-Android.apk
           if-no-files-found: error
