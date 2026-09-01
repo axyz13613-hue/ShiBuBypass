@@ -1,4 +1,4 @@
-name: Build ShiBu Bypass Universal v3.6 Native Popup Final
+name: Build ShiBu Bypass Universal v3.6 Native Video Mode
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_NATIVE_POPUP_FINAL.zip"
+  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_NATIVE_VIDEO_MODE.zip"
 
 jobs:
   android:
@@ -238,7 +238,7 @@ jobs:
                   }
 
                   val title = TextView(this).apply {
-                      text = "ShiBu Native WebView · Popup"
+                      text = "ShiBu Native WebView · Video Mode"
                       textSize = 17f
                       setTextColor(Color.WHITE)
                       setPadding(dp(8), 0, dp(8), 0)
@@ -324,7 +324,8 @@ jobs:
                   setContentView(root)
 
                   // Start from the exact original URL. Verification/CAPTCHA/timers remain
-                  // entirely user-driven. ShiBu only follows browser navigation afterwards.
+                  // entirely user-driven. Video Mode stays open and tracks the live URL
+                  // until the user explicitly chooses "Dùng URL này".
                   webView.loadUrl(startUrl)
               }
 
@@ -389,14 +390,12 @@ jobs:
                       }
 
                       override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                          cancelAutoReturn()
                           if (!url.isNullOrBlank()) updateCurrentUrl(url)
                       }
 
                       override fun onPageFinished(view: WebView?, url: String?) {
                           if (!url.isNullOrBlank() && view != null) {
                               updateCurrentUrl(url)
-                              scheduleAutoReturn(url, view, isPopup)
                           }
                       }
 
@@ -432,7 +431,6 @@ jobs:
               private fun activeWebView(): WebView = popupWebView ?: webView
 
               private fun closePopup(restoreMain: Boolean = true) {
-                  cancelAutoReturn()
                   val popup = popupWebView ?: return
                   popupWebView = null
                   try {
@@ -528,7 +526,6 @@ jobs:
               }
 
               override fun onDestroy() {
-                  cancelAutoReturn()
                   popupWebView?.let { popup ->
                       try {
                           if (::webContainer.isInitialized) webContainer.removeView(popup)
@@ -588,13 +585,13 @@ jobs:
         run: |
           cd "$PROJECT_DIR"
           flutter build apk --release
-          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Android.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Android.apk"
 
       - name: Upload Android
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Android
-          path: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Android.apk
+          name: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Android
+          path: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Android.apk
           if-no-files-found: error
 
   windows:
@@ -613,8 +610,8 @@ jobs:
       - name: Extract source
         shell: pwsh
         run: |
-          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.6_NATIVE_POPUP_FINAL.zip' | Select-Object -First 1
-          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.6_NATIVE_POPUP_FINAL.zip in repo root' }
+          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.6_NATIVE_VIDEO_MODE.zip' | Select-Object -First 1
+          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.6_NATIVE_VIDEO_MODE.zip in repo root' }
           Remove-Item universal -Recurse -Force -ErrorAction SilentlyContinue
           Expand-Archive $zip.FullName universal
           $project = Get-ChildItem universal -Recurse -Filter pubspec.yaml | Select-Object -First 1
@@ -644,13 +641,13 @@ jobs:
           "@ | Set-Content flutter_launcher_icons.yaml
           dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
           flutter build windows --release
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "$env:GITHUB_WORKSPACE\ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Windows.zip"
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "$env:GITHUB_WORKSPACE\ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Windows.zip"
 
       - name: Upload Windows
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Windows
-          path: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Windows.zip
+          name: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Windows
+          path: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Windows.zip
           if-no-files-found: error
 
   linux:
@@ -691,13 +688,13 @@ jobs:
           cp -r /tmp/shibu_assets assets
           flutter pub get
           flutter build linux --release
-          tar -C build/linux/x64/release -czf "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Linux.tar.gz" bundle
+          tar -C build/linux/x64/release -czf "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Linux.tar.gz" bundle
 
       - name: Upload Linux
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Linux
-          path: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-Linux.tar.gz
+          name: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Linux
+          path: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-Linux.tar.gz
           if-no-files-found: error
 
   macos:
@@ -742,13 +739,13 @@ jobs:
           flutter build macos --release
           APP="$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -n 1)"
           test -n "$APP" || { echo "macOS .app not found"; exit 1; }
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-macOS.zip"
 
       - name: Upload macOS
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-macOS
-          path: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-macOS.zip
+          name: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-macOS
+          path: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-macOS.zip
           if-no-files-found: error
 
   ios:
@@ -799,11 +796,11 @@ jobs:
           rm -rf Payload
           mkdir Payload
           cp -R build/ios/iphoneos/Runner.app Payload/
-          zip -qry "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-iOS-unsigned.ipa" Payload
+          zip -qry "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-iOS-unsigned.ipa" Payload
 
       - name: Upload iOS
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-iOS-unsigned
-          path: ShiBuBypass-v3.6-NATIVE-POPUP-FINAL-iOS-unsigned.ipa
+          name: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-iOS-unsigned
+          path: ShiBuBypass-v3.6-NATIVE-VIDEO-MODE-iOS-unsigned.ipa
           if-no-files-found: error
