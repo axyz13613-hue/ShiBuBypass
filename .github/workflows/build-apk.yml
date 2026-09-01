@@ -1,4 +1,4 @@
-name: Build ShiBu Bypass Universal v3.4
+name: Build ShiBu Bypass Universal v3.5
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  SOURCE_GLOB: "ShiBuBypass_Universal_v3.4.zip"
+  SOURCE_GLOB: "ShiBuBypass_Universal_v3.5.zip"
 
 jobs:
   android:
@@ -56,6 +56,73 @@ jobs:
           cp -r /tmp/shibu_lib lib
           cp -r /tmp/shibu_assets assets
           flutter pub get
+
+          # Android share bridge: Chrome -> Share -> ShiBu Bypass.
+          # It only receives text the user explicitly shares back to the app.
+          mkdir -p android/app/src/main/kotlin/com/shibu/shibu_bypass
+          cat > android/app/src/main/kotlin/com/shibu/shibu_bypass/MainActivity.kt <<'EOF'
+          package com.shibu.shibu_bypass
+
+          import android.content.Intent
+          import android.os.Bundle
+          import io.flutter.embedding.android.FlutterActivity
+          import io.flutter.embedding.engine.FlutterEngine
+          import io.flutter.plugin.common.MethodChannel
+
+          class MainActivity : FlutterActivity() {
+              private val channelName = "shibu/share"
+              private var pendingSharedText: String? = null
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  captureShare(intent)
+              }
+
+              override fun onNewIntent(intent: Intent) {
+                  super.onNewIntent(intent)
+                  setIntent(intent)
+                  captureShare(intent)
+              }
+
+              private fun captureShare(intent: Intent?) {
+                  if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+                      val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+                      if (!text.isNullOrBlank()) pendingSharedText = text
+                  }
+              }
+
+              override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+                  super.configureFlutterEngine(flutterEngine)
+                  MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+                      .setMethodCallHandler { call, result ->
+                          if (call.method == "getSharedText") {
+                              val text = pendingSharedText
+                              pendingSharedText = null
+                              result.success(text)
+                          } else {
+                              result.notImplemented()
+                          }
+                      }
+              }
+          }
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          if 'android.intent.action.SEND' not in s:
+              lines = [
+                  '            <intent-filter>',
+                  '                <action android:name="android.intent.action.SEND"/>',
+                  '                <category android:name="android.intent.category.DEFAULT"/>',
+                  '                <data android:mimeType="text/plain"/>',
+                  '            </intent-filter>',
+              ]
+              s = s.replace('</activity>', '\n'.join(lines) + '\n        </activity>', 1)
+              p.write_text(s)
+          PY
+
           cat > flutter_launcher_icons.yaml <<'EOF'
           flutter_launcher_icons:
             android: true
@@ -69,13 +136,13 @@ jobs:
         run: |
           cd "$PROJECT_DIR"
           flutter build apk --release
-          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.4-Android.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.5-Android.apk"
 
       - name: Upload Android
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.4-Android
-          path: ShiBuBypass-v3.4-Android.apk
+          name: ShiBuBypass-v3.5-Android
+          path: ShiBuBypass-v3.5-Android.apk
           if-no-files-found: error
 
   windows:
@@ -94,8 +161,8 @@ jobs:
       - name: Extract source
         shell: pwsh
         run: |
-          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.4.zip' | Select-Object -First 1
-          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.4.zip in repo root' }
+          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.5.zip' | Select-Object -First 1
+          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.5.zip in repo root' }
           Remove-Item universal -Recurse -Force -ErrorAction SilentlyContinue
           Expand-Archive $zip.FullName universal
           $project = Get-ChildItem universal -Recurse -Filter pubspec.yaml | Select-Object -First 1
@@ -125,13 +192,13 @@ jobs:
           "@ | Set-Content flutter_launcher_icons.yaml
           dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
           flutter build windows --release
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "$env:GITHUB_WORKSPACE\ShiBuBypass-v3.4-Windows.zip"
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "$env:GITHUB_WORKSPACE\ShiBuBypass-v3.5-Windows.zip"
 
       - name: Upload Windows
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.4-Windows
-          path: ShiBuBypass-v3.4-Windows.zip
+          name: ShiBuBypass-v3.5-Windows
+          path: ShiBuBypass-v3.5-Windows.zip
           if-no-files-found: error
 
   linux:
@@ -172,13 +239,13 @@ jobs:
           cp -r /tmp/shibu_assets assets
           flutter pub get
           flutter build linux --release
-          tar -C build/linux/x64/release -czf "$GITHUB_WORKSPACE/ShiBuBypass-v3.4-Linux.tar.gz" bundle
+          tar -C build/linux/x64/release -czf "$GITHUB_WORKSPACE/ShiBuBypass-v3.5-Linux.tar.gz" bundle
 
       - name: Upload Linux
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.4-Linux
-          path: ShiBuBypass-v3.4-Linux.tar.gz
+          name: ShiBuBypass-v3.5-Linux
+          path: ShiBuBypass-v3.5-Linux.tar.gz
           if-no-files-found: error
 
   macos:
@@ -223,13 +290,13 @@ jobs:
           flutter build macos --release
           APP="$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -n 1)"
           test -n "$APP" || { echo "macOS .app not found"; exit 1; }
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "$GITHUB_WORKSPACE/ShiBuBypass-v3.4-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$GITHUB_WORKSPACE/ShiBuBypass-v3.5-macOS.zip"
 
       - name: Upload macOS
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.4-macOS
-          path: ShiBuBypass-v3.4-macOS.zip
+          name: ShiBuBypass-v3.5-macOS
+          path: ShiBuBypass-v3.5-macOS.zip
           if-no-files-found: error
 
   ios:
@@ -280,11 +347,11 @@ jobs:
           rm -rf Payload
           mkdir Payload
           cp -R build/ios/iphoneos/Runner.app Payload/
-          zip -qry "$GITHUB_WORKSPACE/ShiBuBypass-v3.4-iOS-unsigned.ipa" Payload
+          zip -qry "$GITHUB_WORKSPACE/ShiBuBypass-v3.5-iOS-unsigned.ipa" Payload
 
       - name: Upload iOS
         uses: actions/upload-artifact@v4
         with:
-          name: ShiBuBypass-v3.4-iOS-unsigned
-          path: ShiBuBypass-v3.4-iOS-unsigned.ipa
+          name: ShiBuBypass-v3.5-iOS-unsigned
+          path: ShiBuBypass-v3.5-iOS-unsigned.ipa
           if-no-files-found: error
