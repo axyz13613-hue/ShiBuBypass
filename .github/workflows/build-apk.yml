@@ -1,4 +1,4 @@
-name: Build ShiBu Bypass Universal v3.6 Native FIX
+name: Build ShiBu Bypass Universal v3.6 Native FIX Patched
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_NATIVE_FIXED.zip"
+  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_NATIVE_FIXED_PATCHED.zip"
 
 jobs:
   android:
@@ -288,8 +288,9 @@ jobs:
 
                       webChromeClient = object : WebChromeClient() {
                           override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                              progress.progress = newProgress
-                              progress.visibility = if (newProgress in 1..99) View.VISIBLE else View.GONE
+                              this@NativeWebViewActivity.progress.progress = newProgress
+                              this@NativeWebViewActivity.progress.visibility =
+                                  if (newProgress in 1..99) View.VISIBLE else View.GONE
                           }
                       }
 
@@ -461,8 +462,8 @@ jobs:
       - name: Extract source
         shell: pwsh
         run: |
-          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.6_NATIVE_FIXED.zip' | Select-Object -First 1
-          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.6_NATIVE_FIXED.zip in repo root' }
+          $zip = Get-ChildItem -File 'ShiBuBypass_Universal_v3.6_NATIVE_FIXED_PATCHED.zip' | Select-Object -First 1
+          if (-not $zip) { throw 'Missing ShiBuBypass_Universal_v3.6_NATIVE_FIXED_PATCHED.zip in repo root' }
           Remove-Item universal -Recurse -Force -ErrorAction SilentlyContinue
           Expand-Archive $zip.FullName universal
           $project = Get-ChildItem universal -Recurse -Filter pubspec.yaml | Select-Object -First 1
