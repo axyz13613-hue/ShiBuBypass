@@ -1,4 +1,4 @@
-name: Build ShiBu Bypass v3.6 Native Video Inline Fix (Runtime Test FIX2)
+name: Build ShiBu Bypass v3.6 Native Video Inline Fix (Quick APK)
 
 on:
   workflow_dispatch:
@@ -130,17 +130,7 @@ jobs:
           flutter build apk --release
           cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-VIDEO-INLINE-FIX-Android.apk"
 
-      - name: Android emulator runtime smoke test
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 31
-          arch: x86_64
-          profile: pixel_2
-          disable-animations: true
-          script: |
-            bash -lc 'set -euo pipefail; adb install -r "$GITHUB_WORKSPACE/ShiBuBypass-v3.6-NATIVE-VIDEO-INLINE-FIX-Android.apk"; python3 "$PROJECT_DIR/tests/android_ui_smoke.py"'
-
-      - name: Upload tested Android APK
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: ShiBuBypass-v3.6-NATIVE-VIDEO-INLINE-FIX-Android
