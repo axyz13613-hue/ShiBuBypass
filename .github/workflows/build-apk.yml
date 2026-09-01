@@ -1,4 +1,4 @@
-name: Build ShiBu Bypass v3.6 Native Video Inline Fix (Quick APK)
+name: Build ShiBu Bypass v3.6 Redirect First Fix (Quick APK)
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_NATIVE_VIDEO_INLINE_FIX.zip"
+  SOURCE_GLOB: "ShiBuBypass_Universal_v3.6_REDIRECT_FIRST_FIX.zip"
 
 jobs:
   android:
