@@ -51,7 +51,7 @@ jobs:
       - name: Align Java and Kotlin JVM targets
         shell: bash
         run: |
-          cat >> "$PROJECT_DIR/app/build.gradle.kts" <<'EOF'
+          cat >> "$PROJECT_DIR/app/build.gradle.kts" <<'EOF2'
 
           android {
               compileOptions {
@@ -62,7 +62,26 @@ jobs:
                   jvmTarget = "17"
               }
           }
-          EOF
+          EOF2
+
+      - name: Fix MainActivity progress reference
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          p = Path(os.environ["PROJECT_DIR"]) / "app/src/main/java/com/shibu/bypass/MainActivity.kt"
+          s = p.read_text(encoding="utf-8")
+          s = s.replace(
+              "                    progress.progress = newProgress",
+              "                    this@MainActivity.progress.progress = newProgress"
+          )
+          s = s.replace(
+              "                    progress.visibility = if (newProgress in 1..99) View.VISIBLE else View.GONE",
+              "                    this@MainActivity.progress.visibility = if (newProgress in 1..99) View.VISIBLE else View.GONE"
+          )
+          p.write_text(s, encoding="utf-8")
+          PY
 
       - name: Build debug APK
         run: gradle -p "$PROJECT_DIR" assembleDebug --stacktrace
