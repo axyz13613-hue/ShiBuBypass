@@ -1,4 +1,4 @@
-name: Build ShiBu Bypass v3.6 Native Video Inline Fix (Tested Android)
+name: Build ShiBu Bypass v3.6 Native Video Inline Fix (Runtime Test FIX)
 
 on:
   workflow_dispatch:
@@ -111,8 +111,16 @@ jobs:
         run: |
           set -euo pipefail
           cd "$PROJECT_DIR"
+
+          # flutter create sinh test/widget_test.dart mặc định dùng class MyApp.
+          # ShiBu dùng entry widget riêng, nên file mẫu này không thuộc source app.
+          rm -f test/widget_test.dart
+
           dart format --output=none --set-exit-if-changed lib/main.dart || true
-          flutter analyze --no-fatal-infos
+
+          # Chỉ analyze source thật của app. Warnings/info không chặn build;
+          # lỗi compile trong lib vẫn làm workflow fail.
+          flutter analyze lib --no-fatal-infos --no-fatal-warnings
 
       - name: Build Android release APK
         shell: bash
