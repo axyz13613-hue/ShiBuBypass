@@ -1,0 +1,74 @@
+name: Build Shibu Bypass v1.1 APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 35
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Extract Shibu Bypass v1.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f ShibuBypass_v1.1.zip || { echo "Missing ShibuBypass_v1.1.zip in repository root"; exit 1; }
+          rm -rf extracted
+          mkdir extracted
+          unzip -q ShibuBypass_v1.1.zip -d extracted
+          PROJECT_DIR="$(find extracted -type f -name settings.gradle -printf '%h\n' | head -n 1)"
+          test -n "$PROJECT_DIR" || { echo "Android Gradle project not found"; exit 1; }
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Android project: $PROJECT_DIR"
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          gradle --no-daemon assembleDebug --stacktrace
+
+      - name: Prepare APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK" || { echo "APK was not generated"; exit 1; }
+          cp "$APK" "$GITHUB_WORKSPACE/Shibu-Bypass-v1.1.apk"
+          ls -lh "$GITHUB_WORKSPACE/Shibu-Bypass-v1.1.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Shibu-Bypass-APK
+          path: Shibu-Bypass-v1.1.apk
+          if-no-files-found: error
+          retention-days: 14
