@@ -1,0 +1,19 @@
+# Sensitive source code and configurations
+backend/
+kiemgao/
+admin_panel/
+userscripts/
+go_tool/pkg/
+go_tool/scripts/
+go_tool/scratch/
+go_tool/main.go
+go_tool/go.mod
+go_tool/go.sum
+go_tool/build*.bat
+*.txt
+*.php
+*.traineddata
+*.html
+*.js
+opencode.json
+co_che_fake_ip_moneytask.md
