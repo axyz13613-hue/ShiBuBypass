@@ -91,6 +91,10 @@ print_step "Buoc 5/5: Thiet lap chong ngu ngam va lenh khoi dong nhanh..."
 proot-distro login $DISTRO -- bash -c "
 cat > /usr/local/bin/run-htct << 'EOF'
 #!/bin/bash
+mkdir -p /tmp /data/local/tmp 2>/dev/null || true
+chmod 1777 /tmp 2>/dev/null || true
+export TMPDIR=/tmp
+
 TOOL_PATH=\"\$(find /root /home -maxdepth 2 \( -name 'HTCT_arm64' -o -name 'HTCT_armv7' \) 2>/dev/null | head -1)\"
 
 # Neu chua co trong /root, tu dong tim trong thu muc Download cua may
@@ -123,6 +127,8 @@ chmod +x /usr/local/bin/run-htct
 cat > "$PREFIX/bin/htct" << EOF
 #!/data/data/com.termux/files/usr/bin/bash
 termux-wake-lock 2>/dev/null || true
+export TMPDIR=/data/data/com.termux/files/usr/tmp
+mkdir -p "\$TMPDIR" 2>/dev/null || true
 proot-distro login $DISTRO -- run-htct "\$@"
 EOF
 chmod +x "$PREFIX/bin/htct"
