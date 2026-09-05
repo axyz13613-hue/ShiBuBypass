@@ -13,7 +13,8 @@ Bộ công cụ tự động hóa giải mã và vượt link nhiệm vụ tốc
 ---
 
 ### 📱 2. Dành cho Điện thoại Android
-* **File thực thi:** [`android/HTCT_arm64`](android/HTCT_arm64)
+* **Máy 64-bit (Phổ biến nhất):** [`android/HTCT_arm64`](android/HTCT_arm64)
+* **Máy 32-bit (Đời cũ):** [`android/HTCT_armv7`](android/HTCT_armv7)
 * **Script cài đặt 1 chạm:** [`android/setup_android.sh`](android/setup_android.sh)
 * **Hướng dẫn chi tiết:** 👉 [Xem Hướng Dẫn Sử Dụng Android](android/HUONG_DAN_SU_DUNG_ANDROID.md)
 

@@ -7,7 +7,8 @@
 
 Tải các file sau về điện thoại và **để nguyên trong thư mục Tải về (Download)**:
 
-1. **`HTCT_arm64`**: File thực thi cốt lõi của Tool (Engine ngầm cho Android 64-bit).
+1. **`HTCT_arm64`**: File thực thi cốt lõi của Tool (Engine ngầm cho Android 64-bit — 99% điện thoại hiện nay dùng bản này).  
+   *(Nếu bạn dùng điện thoại Android 32-bit đời cũ, hãy tải file **`HTCT_armv7`**).*
 2. **`setup_android.sh`**: Bộ cài đặt môi trường tự động 1 chạm.
 3. **`yeutask_cookie.txt`** (hoặc file cấu hình cookie nền tảng bạn làm): Chứa thông tin đăng nhập tài khoản.
 4. **License Key**: Mã bản quyền (lấy miễn phí tại `kiemgao.site` hoặc mua từ Admin).

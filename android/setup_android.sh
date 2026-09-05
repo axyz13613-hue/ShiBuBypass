@@ -91,23 +91,24 @@ print_step "Buoc 5/5: Thiet lap chong ngu ngam va lenh khoi dong nhanh..."
 proot-distro login $DISTRO -- bash -c "
 cat > /usr/local/bin/run-htct << 'EOF'
 #!/bin/bash
-TOOL_PATH=\"\$(find /root /home -maxdepth 2 -name 'HTCT_arm64' 2>/dev/null | head -1)\"
+TOOL_PATH=\"\$(find /root /home -maxdepth 2 \( -name 'HTCT_arm64' -o -name 'HTCT_armv7' \) 2>/dev/null | head -1)\"
 
 # Neu chua co trong /root, tu dong tim trong thu muc Download cua may
 if [ -z \"\$TOOL_PATH\" ]; then
-    for p in /sdcard/Download/HTCT_arm64 /sdcard/Download/Telegram/HTCT_arm64 /sdcard/Zalo/HTCT_arm64 /sdcard/HTCT_arm64; do
+    for p in /sdcard/Download/HTCT_arm64 /sdcard/Download/HTCT_armv7 /sdcard/HTCT_arm64 /sdcard/HTCT_armv7; do
         if [ -f \"\$p\" ]; then
-            echo '[*] Tim thay file HTCT_arm64 tai Download, dang sao chep...'
-            cp \"\$p\" /root/HTCT_arm64
-            TOOL_PATH=\"/root/HTCT_arm64\"
+            BIN_NAME=\"\$(basename \"\$p\")\"
+            echo \"[*] Tim thay file \$BIN_NAME tai Download, dang sao chep...\"
+            cp \"\$p\" \"/root/\$BIN_NAME\"
+            TOOL_PATH=\"/root/\$BIN_NAME\"
             break
         fi
     done
 fi
 
 if [ -z \"\$TOOL_PATH\" ]; then
-    echo -e '\033[31m[-] Khong tim thay file HTCT_arm64!\033[0m'
-    echo '[*] Ban hay tai file HTCT_arm64 ve may (de trong thu muc Download) roi go lai: htct'
+    echo -e '\033[31m[-] Khong tim thay file HTCT_arm64 hoac HTCT_armv7!\033[0m'
+    echo '[*] Ban hay tai file HTCT_arm64 (hoac HTCT_armv7) ve may (de trong thu muc Download) roi go lai: htct'
     exit 1
 fi
 
