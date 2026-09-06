@@ -95,19 +95,21 @@ mkdir -p /tmp /data/local/tmp 2>/dev/null || true
 chmod 1777 /tmp 2>/dev/null || true
 export TMPDIR=/tmp
 
-TOOL_PATH=\"\$(find /root /home -maxdepth 2 \( -name 'HTCT_arm64' -o -name 'HTCT_armv7' \) 2>/dev/null | head -1)\"
-
-# Neu chua co trong /root, tu dong tim trong thu muc Download cua may
-if [ -z \"\$TOOL_PATH\" ]; then
-    for p in /sdcard/Download/HTCT_arm64 /sdcard/Download/HTCT_armv7 /sdcard/HTCT_arm64 /sdcard/HTCT_armv7; do
-        if [ -f \"\$p\" ]; then
-            BIN_NAME=\"\$(basename \"\$p\")\"
-            echo \"[*] Tim thay file \$BIN_NAME tai Download, dang sao chep...\"
-            cp \"\$p\" \"/root/\$BIN_NAME\"
-            TOOL_PATH=\"/root/\$BIN_NAME\"
-            break
+# Uu tien cap nhat tu thu muc Download neu nguoi dung chep file moi vao
+for p in /sdcard/Download/HTCT_arm64 /sdcard/Download/HTCT_armv7 /sdcard/HTCT_arm64 /sdcard/HTCT_armv7; do
+    if [ -f "\$p" ]; then
+        BIN_NAME="\$(basename "\$p")"
+        if [ ! -f "/root/\$BIN_NAME" ] || [ "\$p" -nt "/root/\$BIN_NAME" ]; then
+            echo "[*] Phat hien ban moi cua \$BIN_NAME tai Download, dang cap nhat..."
+            cp -f "\$p" "/root/\$BIN_NAME"
         fi
-    done
+        TOOL_PATH="/root/\$BIN_NAME"
+        break
+    fi
+done
+
+if [ -z "\$TOOL_PATH" ]; then
+    TOOL_PATH="\$(find /root /home -maxdepth 2 \( -name 'HTCT_arm64' -o -name 'HTCT_armv7' \) 2>/dev/null | head -1)"
 fi
 
 if [ -z \"\$TOOL_PATH\" ]; then

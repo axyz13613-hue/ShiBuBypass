@@ -17,3 +17,13 @@ go_tool/build*.bat
 *.js
 opencode.json
 co_che_fake_ip_moneytask.md
+
+# Licenses, local settings & logs
+*.octo_license
+*.octo_settings
+.octo_license
+.octo_settings
+**/logs/
+*.log
+go_tool/octotool.exe
+go_tool/prompts.go
