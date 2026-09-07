@@ -1,0 +1,82 @@
+name: Build ShiBu Cloud v3.2.1 Stability Fix
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main", "master" ]
+    paths:
+      - '.github/workflows/build-shibu-cloud-v3.2.1-fix-from-existing-zip.yml'
+      - 'ShiBuCloud_v3.2_Stability_GitHub.zip'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Extract v3.2 and apply compile fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf shibu-v321-src
+          mkdir shibu-v321-src
+          unzip -q ShiBuCloud_v3.2_Stability_GitHub.zip -d shibu-v321-src
+
+          # Fix invalid Android Button API used in v3.2
+          grep -RIl 'setTextAllCaps(false)' shibu-v321-src/app/src/main/java \
+            | xargs -r sed -i 's/setTextAllCaps(false)/setAllCaps(false)/g'
+
+          # Mark this APK as the fixed build
+          sed -i 's/versionCode 30200/versionCode 30201/' shibu-v321-src/app/build.gradle
+          sed -i 's/versionName "3.2.0-stability"/versionName "3.2.1-stability-fix"/' shibu-v321-src/app/build.gradle
+          sed -i 's/ShiBuCloud_v3.2_${variant.name}.apk/ShiBuCloud_v3.2.1_${variant.name}.apk/' shibu-v321-src/app/build.gradle
+
+          # Fail early if the bad method still exists
+          if grep -R 'setTextAllCaps' shibu-v321-src/app/src/main/java; then
+            echo 'Compile fix did not apply completely.'
+            exit 1
+          fi
+
+          test -f shibu-v321-src/settings.gradle
+          test -f shibu-v321-src/app/build.gradle
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Build ShiBu Cloud v3.2.1 APK
+        working-directory: shibu-v321-src
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          mkdir -p out
+          find shibu-v321-src/app/build/outputs/apk -type f -name '*.apk' -exec cp {} out/ \;
+          ls -lh out
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShiBuCloud-v3.2.1-Stability-Fix
+          path: out/*.apk
+          if-no-files-found: error
