@@ -1,4 +1,4 @@
-# 📱 HƯỚNG DẪN CÀI ĐẶT & CHẠY TOOL HTCT TRÊN ĐIỆN THOẠI ANDROID
+# 📱 HƯỚNG DẪN CÀI ĐẶT & CHẠY TOOL SHIBU TRÊN ĐIỆN THOẠI ANDROID
 > *Hệ thống tự động hóa hoàn toàn 100% trên điện thoại Android (Termux) — Tự động nhận nhiệm vụ, tự động giải mã Octolink/Hold Captcha, tự động nộp bài và nhận tiền.*
 
 ---
@@ -7,8 +7,8 @@
 
 Tải các file sau về điện thoại và **để nguyên trong thư mục Tải về (Download)**:
 
-1. **`HTCT_arm64`**: File thực thi cốt lõi của Tool (Engine ngầm cho Android 64-bit — 99% điện thoại hiện nay dùng bản này).  
-   *(Nếu bạn dùng điện thoại Android 32-bit đời cũ, hãy tải file **`HTCT_armv7`**).*
+1. **`SHIBU_arm64`**: File thực thi cốt lõi của Tool (Engine ngầm cho Android 64-bit — 99% điện thoại hiện nay dùng bản này).  
+   *(Nếu bạn dùng điện thoại Android 32-bit đời cũ, hãy tải file **`SHIBU_armv7`**).*
 2. **`setup_android.sh`**: Bộ cài đặt môi trường tự động 1 chạm.
 3. **`yeutask_cookie.txt`** (hoặc file cấu hình cookie nền tảng bạn làm): Chứa thông tin đăng nhập tài khoản.
 4. **License Key**: Mã bản quyền (lấy miễn phí tại `kiemgao.site` hoặc mua từ Admin).
@@ -41,7 +41,7 @@ Tải các file sau về điện thoại và **để nguyên trong thư mục T�
 4. **Hệ thống sẽ tự động hoàn toàn:**
    * Tự động cài môi trường Linux container tối ưu cho Android.
    * Tự động cài đặt Chromium Engine chạy ngầm không tiêu tốn tài nguyên màn hình.
-   * Tự động tạo lối tắt khởi động nhanh `htct`.
+   * Tự động tạo lối tắt khởi động nhanh `shibu`.
    * Quá trình tải và thiết lập mất khoảng 2 - 5 phút tùy tốc độ mạng.
    * Khi màn hình báo **🎉 CÀI ĐẶT HOÀN TẤT 100%!** là xong.
 
@@ -52,7 +52,7 @@ Tải các file sau về điện thoại và **để nguyên trong thư mục T�
 Mỗi ngày khi muốn bật tool cày, bạn chỉ cần mở Termux và gõ:
 
 ```bash
-htct
+shibu
 ```
 
 ### Quy trình tool tự hoạt động:
@@ -91,4 +91,4 @@ htct
 * **Hỏi: Muốn dừng tool thì làm thế nào?**
   * *Trả lời:* Trên màn hình Termux, nhấn tổ hợp phím **Ctrl + C** (hoặc nút `Ctrl` trên thanh phím phụ của Termux rồi bấm phím `c`).
 * **Hỏi: Muốn cập nhật file cookie mới?**
-  * *Trả lời:* Chỉ cần dán file cookie mới vào thư mục `Download` của điện thoại, tool sẽ tự động đồng bộ khi chạy lệnh `htct`.
+  * *Trả lời:* Chỉ cần dán file cookie mới vào thư mục `Download` của điện thoại, tool sẽ tự động đồng bộ khi chạy lệnh `shibu`.

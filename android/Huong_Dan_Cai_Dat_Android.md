@@ -7,7 +7,7 @@
 
 1. **Điện thoại Android:** Yêu cầu RAM từ **3GB trở lên** (khuyến nghị 4GB+), bộ nhớ trống khoảng **1.5GB - 2GB**.
 2. **File nhận từ Admin (để trong thư mục Download của điện thoại):**
-   * File `HTCT_arm64` *(Engine giải mã ngầm)*
+   * File `SHIBU_arm64` *(Engine giải mã ngầm)*
    * File `setup_android.sh` *(Bộ cài tự động 1 chạm)*
    * File `moneytask.user.js` *(hoặc script tương ứng trong thư mục `userscripts/`)*
    * **License Key** bản quyền được cấp từ Admin.
@@ -40,7 +40,7 @@ Trên điện thoại, cài đặt 2 ứng dụng sau:
    ```bash
    bash /sdcard/Download/setup_android.sh
    ```
-   *(Nếu bạn tải file qua Telegram/Zalo, hãy dùng app Quản lý File chuyển file `setup_android.sh` và `HTCT_arm64` vào thư mục `Download` rồi chạy lệnh trên).*
+   *(Nếu bạn tải file qua Telegram/Zalo, hãy dùng app Quản lý File chuyển file `setup_android.sh` và `SHIBU_arm64` vào thư mục `Download` rồi chạy lệnh trên).*
 
 4. **Ngồi chờ hệ thống tự động cài đặt:**
    * Termux sẽ tự động tải môi trường Linux và Chromium chạy ngầm (~3 - 7 phút tùy tốc độ mạng).
@@ -71,7 +71,7 @@ Mỗi ngày khi muốn cày nhiệm vụ, bạn chỉ cần làm 2 bước:
 * Mở app **Termux** lên.
 * Gõ đúng 4 chữ:
   ```bash
-  htct
+  shibu
   ```
   rồi nhấn **Enter**.
 * *(Lần đầu tiên chạy: Tool sẽ hỏi **License Key** $\rightarrow$ Dán Key của bạn vào rồi bấm Enter).*
@@ -106,6 +106,6 @@ Mỗi ngày khi muốn cày nhiệm vụ, bạn chỉ cần làm 2 bước:
     proot-distro login ubuntu -- bash -c "apt update && apt install -y software-properties-common && add-apt-repository -y ppa:xtradeb/apps && apt update && apt install -y chromium"
     ```
 * **Lỗi: Bảng điều khiển màu tím báo "Chưa kết nối Tool Go"?**
-  * *Cách sửa:* Do bạn chưa mở Termux và gõ lệnh `htct`. Mở Termux gõ `htct` trước, sau đó quay lại Kiwi Browser tải lại trang (F5).
+  * *Cách sửa:* Do bạn chưa mở Termux và gõ lệnh `shibu`. Mở Termux gõ `shibu` trước, sau đó quay lại Kiwi Browser tải lại trang (F5).
 * **Lỗi: Chạy lệnh `setup_android.sh` báo "No such file or directory"?**
   * *Cách sửa:* Bạn chưa cấp quyền bộ nhớ. Hãy gõ lệnh `termux-setup-storage` trước, chọn Cho phép, rồi kiểm tra xem file `setup_android.sh` đã nằm trong thư mục `Download` chưa.

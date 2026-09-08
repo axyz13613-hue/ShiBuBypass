@@ -1,15 +1,15 @@
-# 🚀 HƯỚNG DẪN SỬ DỤNG TOOL AUTO HTCT ENGINE (CHẠY TRỰC TIẾP)
+# 🚀 HƯỚNG DẪN SỬ DỤNG TOOL AUTO SHIBU ENGINE (CHẠY TRỰC TIẾP)
 > **Phiên bản:** v7.3 Pro Edition • Hỗ trợ đa nền tảng: YeuTask, MoneyTask, Minuc  
 > **Bộ phận hỗ trợ kỹ thuật & Kích hoạt bản quyền:** *(Liên hệ Admin / Shop cung cấp key)*
 
 ---
 
 ## 🎁 GIỚI THIỆU
-Phần mềm **HTCT Auto Engine** là công cụ tự động hóa giải mã và vượt link nhiệm vụ tốc độ cao chạy trực tiếp trên máy tính. Tool được tích hợp đầy đủ công nghệ lõi:
+Phần mềm **SHIBU Auto Engine** là công cụ tự động hóa giải mã và vượt link nhiệm vụ tốc độ cao chạy trực tiếp trên máy tính. Tool được tích hợp đầy đủ công nghệ lõi:
 - **Tự động 100%:** Tự mở trình duyệt ngầm, bỏ qua đếm ngược (countdown), giải captcha, vượt link rút gọn và tự động gửi nhận thưởng.
 - **Ẩn danh & Chống phát hiện:** Tích hợp bộ giả lập thiết bị (Mobile Device Emulation) và cơ chế chống phát hiện bot.
 - **Hỗ trợ Proxy đa luồng:** Hỗ trợ chạy song song nhiều luồng và tự động xoay danh sách Proxy thông minh.
-- **Không phụ thuộc tiện ích:** Chạy độc lập hoàn toàn bằng file `HTCT.exe`, không cần cài đặt thêm extension hay kịch bản phức tạp.
+- **Không phụ thuộc tiện ích:** Chạy độc lập hoàn toàn bằng file `SHIBU.exe`, không cần cài đặt thêm extension hay kịch bản phức tạp.
 
 ---
 
@@ -17,7 +17,7 @@ Phần mềm **HTCT Auto Engine** là công cụ tự động hóa giải mã v�
 
 ```mermaid
 flowchart LR
-    Step1["BƯỚC 1\nChạy HTCT.exe &\nNhập License Key"] --> Step2["BƯỚC 2\nChọn Nền tảng &\nNạp Cookie"] --> Step3["BƯỚC 3\nDán link nhiệm vụ &\nTool tự động giải mã 100%"]
+    Step1["BƯỚC 1\nChạy SHIBU.exe &\nNhập License Key"] --> Step2["BƯỚC 2\nChọn Nền tảng &\nNạp Cookie"] --> Step3["BƯỚC 3\nDán link nhiệm vụ &\nTool tự động giải mã 100%"]
 ```
 
 ---
@@ -25,7 +25,7 @@ flowchart LR
 ## 🟢 BƯỚC 1: Khởi động & Nhập Bản quyền
 
 1. Giải nén thư mục phần mềm bạn nhận được từ Shop.
-2. Mở thư mục `bin/` và **nhấp đúp chuột mở file `HTCT.exe`**.
+2. Mở thư mục `bin/` và **nhấp đúp chuột mở file `SHIBU.exe`**.
 3. **Nhập License Key:**
    * Màn hình xuất hiện dòng nhắc:
      ```text
@@ -92,7 +92,7 @@ Khi thấy Bảng điều khiển hệ thống hiển thị:
 3. Sau khi làm xong, tool sẽ báo kết quả màu xanh lá và tiếp tục chờ bạn dán link tiếp theo.
 
 > [!TIP]
-> Bạn có thể thu nhỏ cửa sổ `HTCT.exe` xuống thanh Taskbar và thoải mái lướt web, xem phim hay làm các công việc khác trong lúc tool tự động chạy ngầm.
+> Bạn có thể thu nhỏ cửa sổ `SHIBU.exe` xuống thanh Taskbar và thoải mái lướt web, xem phim hay làm các công việc khác trong lúc tool tự động chạy ngầm.
 
 ---
 
@@ -127,7 +127,7 @@ Nếu phát hiện mã chiến dịch nào bị lỗi từ phía nhà mạng (v�
 * Bấm tổ hợp phím **Ctrl + C** trên cửa sổ console hoặc gõ **`exit`** tại dòng nhắc nhập link. Tool sẽ dọn dẹp tiến trình an toàn và hiển thị bảng tổng kết hoạt động phiên (thời gian chạy, số nhiệm vụ thành công, tốc độ trung bình).
 
 ### 2. Lỗi "Cổng Bridge 8080 bị chiếm"?
-* Mở **Task Manager** (Ctrl + Shift + Esc), tìm các tiến trình `HTCT.exe` cũ còn sót lại và bấm **End task**, sau đó mở lại tool.
+* Mở **Task Manager** (Ctrl + Shift + Esc), tìm các tiến trình `SHIBU.exe` cũ còn sót lại và bấm **End task**, sau đó mở lại tool.
 
 ### 3. Muốn đổi License Key hoặc đổi Cookie thì làm thế nào?
 * **Đổi Key:** Xóa file `.octo_license` trong thư mục `bin/` rồi mở lại tool để nhập key mới.

@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ============================================================
-#   HTCT TOOL - Script cai dat tu dong cho Android (Termux)
+#   SHIBU TOOL - Script cai dat tu dong cho Android (Termux)
 #   Chay 1 lan duy nhat de setup moi truong
 # ============================================================
 
@@ -20,7 +20,7 @@ print_err()  { echo -e "${RED}${BOLD}[-] $1${RESET}"; }
 
 echo -e "${CYAN}${BOLD}"
 echo "  ╔══════════════════════════════════════════════╗"
-echo "  ║   HO TRO CUT TAY - Android Setup v1.0       ║"
+echo "  ║   SHIBU BYPASS - Android Setup v1.0       ║"
 echo "  ║   Script cai dat tu dong cho Termux          ║"
 echo "  ╚══════════════════════════════════════════════╝"
 echo -e "${RESET}"
@@ -87,16 +87,16 @@ print_ok "Chromium va cac thu vien da cai dat hoan tat"
 # ── Buoc 5: Thiet lap Wake Lock va lenh tat ──────────────
 print_step "Buoc 5/5: Thiet lap chong ngu ngam va lenh khoi dong nhanh..."
 
-# Tao lenh tat nhanh run-htct trong Linux container (co tu dong tim file trong /sdcard/Download)
+# Tao lenh tat nhanh run-shibu trong Linux container (co tu dong tim file trong /sdcard/Download)
 proot-distro login $DISTRO -- bash -c "
-cat > /usr/local/bin/run-htct << 'EOF'
+cat > /usr/local/bin/run-shibu << 'EOF'
 #!/bin/bash
 mkdir -p /tmp /data/local/tmp 2>/dev/null || true
 chmod 1777 /tmp 2>/dev/null || true
 export TMPDIR=/tmp
 
 # Uu tien cap nhat tu thu muc Download neu nguoi dung chep file moi vao
-for p in /sdcard/Download/HTCT_arm64 /sdcard/Download/HTCT_armv7 /sdcard/HTCT_arm64 /sdcard/HTCT_armv7; do
+for p in /sdcard/Download/SHIBU_arm64 /sdcard/Download/SHIBU_armv7 /sdcard/SHIBU_arm64 /sdcard/SHIBU_armv7; do
     if [ -f "\$p" ]; then
         BIN_NAME="\$(basename "\$p")"
         if [ ! -f "/root/\$BIN_NAME" ] || [ "\$p" -nt "/root/\$BIN_NAME" ]; then
@@ -109,33 +109,33 @@ for p in /sdcard/Download/HTCT_arm64 /sdcard/Download/HTCT_armv7 /sdcard/HTCT_ar
 done
 
 if [ -z "\$TOOL_PATH" ]; then
-    TOOL_PATH="\$(find /root /home -maxdepth 2 \( -name 'HTCT_arm64' -o -name 'HTCT_armv7' \) 2>/dev/null | head -1)"
+    TOOL_PATH="\$(find /root /home -maxdepth 2 \( -name 'SHIBU_arm64' -o -name 'SHIBU_armv7' \) 2>/dev/null | head -1)"
 fi
 
 if [ -z \"\$TOOL_PATH\" ]; then
-    echo -e '\033[31m[-] Khong tim thay file HTCT_arm64 hoac HTCT_armv7!\033[0m'
-    echo '[*] Ban hay tai file HTCT_arm64 (hoac HTCT_armv7) ve may (de trong thu muc Download) roi go lai: htct'
+    echo -e '\033[31m[-] Khong tim thay file SHIBU_arm64 hoac SHIBU_armv7!\033[0m'
+    echo '[*] Ban hay tai file SHIBU_arm64 (hoac SHIBU_armv7) ve may (de trong thu muc Download) roi go lai: shibu'
     exit 1
 fi
 
 chmod +x \"\$TOOL_PATH\"
-echo -e '\033[32m[*] Dang khoi chay HTCT Engine...\033[0m'
+echo -e '\033[32m[*] Dang khoi chay SHIBU Engine...\033[0m'
 \"\$TOOL_PATH\" \"\$@\"
 EOF
-chmod +x /usr/local/bin/run-htct
+chmod +x /usr/local/bin/run-shibu
 "
 
-# Tao lenh tat nhanh 'htct' truc tiep tren man hinh Termux (khong can vao distro)
-cat > "$PREFIX/bin/htct" << EOF
+# Tao lenh tat nhanh 'shibu' truc tiep tren man hinh Termux (khong can vao distro)
+cat > "$PREFIX/bin/shibu" << EOF
 #!/data/data/com.termux/files/usr/bin/bash
 termux-wake-lock 2>/dev/null || true
 export TMPDIR=/data/data/com.termux/files/usr/tmp
 mkdir -p "\$TMPDIR" 2>/dev/null || true
-proot-distro login $DISTRO -- run-htct "\$@"
+proot-distro login $DISTRO -- run-shibu "\$@"
 EOF
-chmod +x "$PREFIX/bin/htct"
+chmod +x "$PREFIX/bin/shibu"
 
-print_ok "Da thiet lap xong lenh khoi chay nhanh: htct"
+print_ok "Da thiet lap xong lenh khoi chay nhanh: shibu"
 
 # ── Tong ket ─────────────────────────────────────────────
 echo ""
@@ -145,7 +145,7 @@ echo "  ║  🎉 CAI DAT HOAN TAT 100%!                          ║"
 echo "  ║                                                      ║"
 echo "  ║  Tu bay gio, moi lan muon chay tool chi can:        ║"
 echo "  ║                                                      ║"
-echo "  ║     👉 Mo Termux va go duy nhat: htct                ║"
+echo "  ║     👉 Mo Termux va go duy nhat: shibu                ║"
 echo "  ║                                                      ║"
 echo "  ║  Tool se tu dong nhan nhiem vu & cay tien 100%!     ║"
 echo "  ╚══════════════════════════════════════════════════════╝"

@@ -1,11 +1,11 @@
-# 🚀 HƯỚNG DẪN SỬ DỤNG TOOL AUTO HTCT ENGINE (DÀNH CHO KHÁCH HÀNG)
+# 🚀 HƯỚNG DẪN SỬ DỤNG TOOL AUTO SHIBU ENGINE (DÀNH CHO KHÁCH HÀNG)
 > **Phiên bản:** v7.3 Pro Edition • Hỗ trợ đa nền tảng: MoneyTask, Minuc (Kiếm Khoai), Yêu Task,...  
 > **Bộ phận hỗ trợ kỹ thuật & Kích hoạt bản quyền:** *(Liên hệ Admin / Shop cung cấp key)*
 
 ---
 
 ## 🎁 LỜI CẢM ƠN & GIỚI THIỆU
-Cảm ơn bạn đã tin tưởng và sử dụng phần mềm **HTCT Auto Engine**. Tool được tích hợp công nghệ giải mã vượt link tự động siêu tốc, chống phát hiện (Anti-Detect), hỗ trợ xoay Proxy và chạy song song nhiều luồng giúp bạn tối đa hóa thu nhập hoàn toàn tự động.
+Cảm ơn bạn đã tin tưởng và sử dụng phần mềm **SHIBU Auto Engine**. Tool được tích hợp công nghệ giải mã vượt link tự động siêu tốc, chống phát hiện (Anti-Detect), hỗ trợ xoay Proxy và chạy song song nhiều luồng giúp bạn tối đa hóa thu nhập hoàn toàn tự động.
 
 Tài liệu này được thiết kế ngắn gọn, dễ hiểu nhất để bạn có thể **cài đặt và chạy kiếm tiền ngay sau 3 phút**!
 
@@ -15,7 +15,7 @@ Tài liệu này được thiết kế ngắn gọn, dễ hiểu nhất để b�
 
 ```mermaid
 flowchart LR
-    Step1["BƯỚC 1\nCài Tampermonkey &\nThêm Userscript"] --> Step2["BƯỚC 2\nChạy HTCT.exe &\nNhập Key bản quyền"] --> Step3["BƯỚC 3\nVào Web nhiệm vụ &\nBấm BẬT AUTO"]
+    Step1["BƯỚC 1\nCài Tampermonkey &\nThêm Userscript"] --> Step2["BƯỚC 2\nChạy SHIBU.exe &\nNhập Key bản quyền"] --> Step3["BƯỚC 3\nVào Web nhiệm vụ &\nBấm BẬT AUTO"]
 ```
 
 ---
@@ -44,10 +44,10 @@ Bạn có thể sử dụng bất kỳ trình duyệt nào: **Google Chrome, Mic
 
 ---
 
-## 🟢 BƯỚC 2: Khởi động & Cấu hình Tool `HTCT.exe`
+## 🟢 BƯỚC 2: Khởi động & Cấu hình Tool `SHIBU.exe`
 
 1. Giải nén thư mục Tool bạn nhận được từ Shop.
-2. Vào thư mục `bin/` và **nhấp đúp chuột mở file `HTCT.exe`**.
+2. Vào thư mục `bin/` và **nhấp đúp chuột mở file `SHIBU.exe`**.
 
 3. **Cấu hình trên màn hình đen (Console):**
 
@@ -80,16 +80,16 @@ Bạn có thể sử dụng bất kỳ trình duyệt nào: **Google Chrome, Mic
 ## 🟢 BƯỚC 3: Bật Auto và Treo máy Kiếm tiền
 
 1. Mở trình duyệt, truy cập và đăng nhập vào tài khoản web nhiệm vụ (VD: `https://moneytask.top/`).
-2. Lúc này trên góc màn hình web sẽ xuất hiện bảng điều khiển của **Hỗ Trợ Cụt Tay / HTCT**.
+2. Lúc này trên góc màn hình web sẽ xuất hiện bảng điều khiển của **Hỗ Trợ Cụt Tay / SHIBU**.
 3. Bấm vào nút **BẬT AUTO (START)**.
 4. **Hệ thống sẽ tự động:**
    * Tìm và nhận nhiệm vụ mới.
-   * Chặn mở tab phiền phức, tự gửi link sang Tool `HTCT.exe`.
+   * Chặn mở tab phiền phức, tự gửi link sang Tool `SHIBU.exe`.
    * Tool Go tự vượt bước, bypass xác thực và lấy mã trong vài giây.
    * Tự điền mã xác nhận và nộp bài nhận tiền!
 
 > [!NOTE]
-> Bạn có thể thu nhỏ cửa sổ `HTCT.exe` xuống thanh Taskbar và để trình duyệt chạy nền làm việc khác thoải mái.
+> Bạn có thể thu nhỏ cửa sổ `SHIBU.exe` xuống thanh Taskbar và để trình duyệt chạy nền làm việc khác thoải mái.
 
 ---
 
@@ -120,8 +120,8 @@ Nếu bạn phát hiện có link nhiệm vụ nào bị hỏng web đích hoặ
 * **Cách xử lý**:
   1. Do lần trước bạn tắt chưa hết hoặc có tool khác đang mở.
   2. Bấm tổ hợp phím **Ctrl + Shift + Esc** để mở **Task Manager**.
-  3. Tìm các tiến trình có tên `HTCT.exe`, `octotool.exe` hoặc `main.exe` -> Nhấn **End Task** để tắt đi.
-  4. Mở lại `HTCT.exe`.
+  3. Tìm các tiến trình có tên `SHIBU.exe`, `octotool.exe` hoặc `main.exe` -> Nhấn **End Task** để tắt đi.
+  4. Mở lại `SHIBU.exe`.
 
 ### 2. Lỗi: "Xác thực thất bại: license key invalid / expired"
 * **Nguyên nhân**: Key nhập sai ký tự, key đã hết hạn hoặc bạn đổi sang máy tính khác.
@@ -129,12 +129,12 @@ Nếu bạn phát hiện có link nhiệm vụ nào bị hỏng web đích hoặ
 
 ### 3. Tool đã bật nhưng trên Web không tự nhận nhiệm vụ?
 * **Cách xử lý**:
-  1. Đảm bảo cửa sổ `HTCT.exe` vẫn đang mở và báo `SẴN SÀNG: Bridge Server đang chạy (Cổng: 8080)`.
+  1. Đảm bảo cửa sổ `SHIBU.exe` vẫn đang mở và báo `SẴN SÀNG: Bridge Server đang chạy (Cổng: 8080)`.
   2. Nhấn **F5** để tải lại trang web nhiệm vụ.
   3. Kiểm tra xem icon Tampermonkey trên trình duyệt có hiện số (đang hoạt động) hay không.
 
 ### 4. Cách tắt Tool đúng cách để không bị lỗi?
-* Khi muốn dừng tool, bạn chỉ cần bấm tổ hợp phím **Ctrl + C** trên cửa sổ đen của `HTCT.exe`. Tool sẽ dừng an toàn và hiển thị bảng thống kê tổng số nhiệm vụ bạn đã hoàn thành trong phiên chạy.
+* Khi muốn dừng tool, bạn chỉ cần bấm tổ hợp phím **Ctrl + C** trên cửa sổ đen của `SHIBU.exe`. Tool sẽ dừng an toàn và hiển thị bảng thống kê tổng số nhiệm vụ bạn đã hoàn thành trong phiên chạy.
 
 ---
 
@@ -146,4 +146,4 @@ Nếu gặp bất kỳ khó khăn nào trong quá trình cài đặt và sử d�
 * ⏰ **Thời gian hỗ trợ:** 08:00 - 23:00 hàng ngày
 
 ---
-*Chúc bạn có trải nghiệm tuyệt vời và kiếm được thật nhiều thu nhập cùng **HTCT Auto Engine**!*
+*Chúc bạn có trải nghiệm tuyệt vời và kiếm được thật nhiều thu nhập cùng **SHIBU Auto Engine**!*
